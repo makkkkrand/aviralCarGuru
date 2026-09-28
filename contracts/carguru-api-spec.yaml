@@ -1,0 +1,1291 @@
+openapi: 3.0.3
+info:
+  title: CarGuru / Velora Microservice API
+  description: >
+    Production-ready REST API for Car Financing, Customer Enquiries, and Vehicle Catalog Lookup.
+    Contract-first specification serving Java Spring Boot 3 backend and React TypeScript UI.
+  version: 1.0.0
+  contact:
+    name: Velora Engineering Team
+    email: dev@velora.carguru.com
+servers:
+  - url: http://localhost:8080
+    description: Local Development Server
+  - url: /
+    description: Production Gateway Server
+
+tags:
+  - name: Financing
+    description: Car loan calculations, pre-qualifications, loan applications, and document submissions.
+  - name: Enquiries
+    description: Customer leads, general enquiries, price quotes, and test-drive bookings.
+  - name: Catalog
+    description: Lightweight vehicle search and pricing metadata for forms and calculators.
+
+paths:
+  # =========================================================================
+  # FINANCING ENDPOINTS
+  # =========================================================================
+  /api/v1/financing/calculator:
+    post:
+      tags:
+        - Financing
+      summary: Calculate auto loan financing EMI and amortization schedule
+      operationId: calculateLoan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanCalculationRequest'
+      responses:
+        '200':
+          description: Financing calculation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanCalculationResponse'
+        '400':
+          description: Invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/financing/options:
+    get:
+      tags:
+        - Financing
+      summary: Get standard financing rate tiers and loan tenure options
+      operationId: getFinancingOptions
+      parameters:
+        - name: creditTier
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [EXCELLENT, GOOD, FAIR, REBUILDING]
+      responses:
+        '200':
+          description: Financing options retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceOptionsResponse'
+
+  /api/v1/financing/pre-qualification:
+    post:
+      tags:
+        - Financing
+      summary: Soft credit-check pre-qualification check
+      operationId: submitPreQualification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreQualificationRequest'
+      responses:
+        '200':
+          description: Pre-qualification processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreQualificationResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/financing/applications:
+    post:
+      tags:
+        - Financing
+      summary: Submit a full vehicle financing application
+      operationId: submitFinancingApplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinancingApplicationRequest'
+      responses:
+        '201':
+          description: Financing application submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancingApplicationResponse'
+        '400':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/financing/applications/{applicationId}:
+    get:
+      tags:
+        - Financing
+      summary: Retrieve financing application status and verification requirements
+      operationId: getFinancingApplication
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: applicantEmail
+          in: query
+          required: false
+          description: Verification email to authenticate public applicant access
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Application details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancingApplicationDetail'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/financing/applications/{applicationId}/documents:
+    post:
+      tags:
+        - Financing
+      summary: Attach verification document metadata/upload to a loan application
+      operationId: uploadApplicationDocument
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentSubmissionRequest'
+      responses:
+        '201':
+          description: Document recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentSubmissionResponse'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # ENQUIRY ENDPOINTS
+  # =========================================================================
+  /api/v1/enquiries:
+    post:
+      tags:
+        - Enquiries
+      summary: Submit a new customer enquiry or price quote request
+      operationId: createEnquiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEnquiryRequest'
+      responses:
+        '201':
+          description: Enquiry submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnquiryResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/enquiries/{enquiryId}:
+    get:
+      tags:
+        - Enquiries
+      summary: Get details and status of a customer enquiry
+      operationId: getEnquiryById
+      parameters:
+        - name: enquiryId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Enquiry retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnquiryDetail'
+        '404':
+          description: Enquiry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/enquiries/categories:
+    get:
+      tags:
+        - Enquiries
+      summary: Get available enquiry categories and contact time preferences
+      operationId: getEnquiryCategories
+      responses:
+        '200':
+          description: Enquiry categories list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnquiryCategoriesResponse'
+
+  /api/v1/enquiries/test-drive:
+    post:
+      tags:
+        - Enquiries
+      summary: Book a dealership test-drive appointment
+      operationId: bookTestDrive
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestDriveBookingRequest'
+      responses:
+        '201':
+          description: Test drive scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestDriveBookingResponse'
+        '400':
+          description: Invalid booking parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/enquiries/{enquiryId}/cancel:
+    patch:
+      tags:
+        - Enquiries
+      summary: Cancel or withdraw an active enquiry or test-drive booking
+      operationId: cancelEnquiry
+      parameters:
+        - name: enquiryId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelEnquiryRequest'
+      responses:
+        '200':
+          description: Enquiry cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnquiryResponse'
+        '404':
+          description: Enquiry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # VEHICLE CATALOG LOOKUP ENDPOINTS
+  # =========================================================================
+  /api/v1/catalog/vehicles/lookup:
+    get:
+      tags:
+        - Catalog
+      summary: Lookup vehicles for calculator and enquiry form auto-population
+      operationId: lookupVehicles
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: make
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Matching vehicles list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VehicleSummary'
+
+  /api/v1/catalog/vehicles/{vehicleId}/finance-profile:
+    get:
+      tags:
+        - Catalog
+      summary: Fetch pricing, manufacturer incentives, and default finance rates for a vehicle
+      operationId: getVehicleFinanceProfile
+      parameters:
+        - name: vehicleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vehicle finance profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleFinanceProfile'
+        '404':
+          description: Vehicle not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+# =========================================================================
+# COMPONENTS & SCHEMAS
+# =========================================================================
+components:
+  schemas:
+    # --- Common & Errors ---
+    ApiError:
+      type: object
+      required:
+        - timestamp
+        - status
+        - message
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: "Bad Request"
+        message:
+          type: string
+          example: "Vehicle price must be greater than zero"
+        fieldErrors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+
+    FieldError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          example: "downPayment"
+        message:
+          type: string
+          example: "Down payment cannot exceed vehicle price"
+
+    # --- Financing Schemas ---
+    LoanCalculationRequest:
+      type: object
+      required:
+        - vehiclePrice
+        - downPayment
+        - interestRateAnnual
+        - tenureMonths
+      properties:
+        vehiclePrice:
+          type: number
+          format: double
+          minimum: 1000
+          example: 65000.00
+        downPayment:
+          type: number
+          format: double
+          minimum: 0
+          example: 10000.00
+        tradeInValue:
+          type: number
+          format: double
+          minimum: 0
+          default: 0.00
+          example: 5000.00
+        interestRateAnnual:
+          type: number
+          format: double
+          minimum: 0.1
+          maximum: 35.0
+          example: 4.99
+        tenureMonths:
+          type: integer
+          minimum: 12
+          maximum: 96
+          example: 60
+        salesTaxRate:
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 25.0
+          default: 7.0
+          example: 7.5
+
+    AmortizationYear:
+      type: object
+      required:
+        - year
+        - principalPaid
+        - interestPaid
+        - remainingBalance
+      properties:
+        year:
+          type: integer
+          example: 1
+        principalPaid:
+          type: number
+          format: double
+          example: 9800.00
+        interestPaid:
+          type: number
+          format: double
+          example: 2450.00
+        remainingBalance:
+          type: number
+          format: double
+          example: 40200.00
+
+    LoanCalculationResponse:
+      type: object
+      required:
+        - vehiclePrice
+        - downPayment
+        - tradeInValue
+        - netCapitalizedCost
+        - totalSalesTax
+        - monthlyPayment
+        - totalInterest
+        - totalCost
+        - tenureMonths
+        - interestRateAnnual
+        - amortizationSchedule
+      properties:
+        vehiclePrice:
+          type: number
+          format: double
+          example: 65000.00
+        downPayment:
+          type: number
+          format: double
+          example: 10000.00
+        tradeInValue:
+          type: number
+          format: double
+          example: 5000.00
+        totalSalesTax:
+          type: number
+          format: double
+          example: 4550.00
+        netCapitalizedCost:
+          type: number
+          format: double
+          description: Vehicle price + tax - down payment - trade in
+          example: 54550.00
+        monthlyPayment:
+          type: number
+          format: double
+          example: 1029.35
+        totalInterest:
+          type: number
+          format: double
+          example: 7211.00
+        totalCost:
+          type: number
+          format: double
+          example: 61761.00
+        tenureMonths:
+          type: integer
+          example: 60
+        interestRateAnnual:
+          type: number
+          format: double
+          example: 4.99
+        amortizationSchedule:
+          type: array
+          items:
+            $ref: '#/components/schemas/AmortizationYear'
+
+    FinanceOptionsResponse:
+      type: object
+      required:
+        - tenureOptionsMonths
+        - interestRateTiers
+        - minDownPaymentPercentage
+      properties:
+        tenureOptionsMonths:
+          type: array
+          items:
+            type: integer
+          example: [24, 36, 48, 60, 72, 84]
+        minDownPaymentPercentage:
+          type: number
+          format: double
+          example: 10.0
+        interestRateTiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/InterestRateTier'
+
+    InterestRateTier:
+      type: object
+      required:
+        - creditTier
+        - aprFrom
+        - aprTo
+        - description
+      properties:
+        creditTier:
+          type: string
+          enum: [EXCELLENT, GOOD, FAIR, REBUILDING]
+          example: "EXCELLENT"
+        aprFrom:
+          type: number
+          format: double
+          example: 3.99
+        aprTo:
+          type: number
+          format: double
+          example: 5.49
+        description:
+          type: string
+          example: "Credit Score 750+"
+
+    PreQualificationRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - phone
+        - annualIncome
+        - employmentStatus
+        - estimatedCreditScore
+        - desiredLoanAmount
+      properties:
+        firstName:
+          type: string
+          example: "Alexander"
+        lastName:
+          type: string
+          example: "Wright"
+        email:
+          type: string
+          format: email
+          example: "alexander.wright@example.com"
+        phone:
+          type: string
+          example: "+1-555-839-2010"
+        annualIncome:
+          type: number
+          format: double
+          example: 125000.00
+        employmentStatus:
+          type: string
+          enum: [EMPLOYED_FULL_TIME, EMPLOYED_PART_TIME, SELF_EMPLOYED, RETIRED, OTHER]
+          example: "EMPLOYED_FULL_TIME"
+        estimatedCreditScore:
+          type: string
+          enum: [EXCELLENT_750_PLUS, GOOD_700_749, FAIR_640_699, BELOW_640]
+          example: "EXCELLENT_750_PLUS"
+        desiredLoanAmount:
+          type: number
+          format: double
+          example: 50000.00
+
+    PreQualificationResponse:
+      type: object
+      required:
+        - isEligible
+        - maxEligibleAmount
+        - estimatedAprFrom
+        - estimatedAprTo
+        - preApprovalReferenceCode
+        - validUntil
+      properties:
+        isEligible:
+          type: boolean
+          example: true
+        maxEligibleAmount:
+          type: number
+          format: double
+          example: 75000.00
+        estimatedAprFrom:
+          type: number
+          format: double
+          example: 4.49
+        estimatedAprTo:
+          type: number
+          format: double
+          example: 5.99
+        preApprovalReferenceCode:
+          type: string
+          example: "VEL-PRE-82910"
+        validUntil:
+          type: string
+          format: date
+          example: "2026-10-31"
+
+    FinancingApplicationRequest:
+      type: object
+      required:
+        - applicant
+        - employment
+        - vehicleDetails
+        - loanTerms
+        - consents
+      properties:
+        applicant:
+          $ref: '#/components/schemas/ApplicantPersonalDetails'
+        employment:
+          $ref: '#/components/schemas/EmploymentDetails'
+        vehicleDetails:
+          $ref: '#/components/schemas/VehicleApplicationDetails'
+        loanTerms:
+          $ref: '#/components/schemas/LoanStructureRequest'
+        consents:
+          $ref: '#/components/schemas/ApplicationConsents'
+
+    ApplicantPersonalDetails:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - dateOfBirth
+        - email
+        - phone
+        - addressLine1
+        - city
+        - state
+        - postalCode
+        - housingStatus
+        - monthlyHousingPayment
+      properties:
+        firstName:
+          type: string
+          example: "Alexander"
+        lastName:
+          type: string
+          example: "Wright"
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1990-05-14"
+        email:
+          type: string
+          format: email
+          example: "alex.wright@example.com"
+        phone:
+          type: string
+          example: "+1-555-0129"
+        addressLine1:
+          type: string
+          example: "450 Ocean Drive"
+        addressLine2:
+          type: string
+          example: "Suite 12B"
+        city:
+          type: string
+          example: "Miami"
+        state:
+          type: string
+          example: "FL"
+        postalCode:
+          type: string
+          example: "33139"
+        housingStatus:
+          type: string
+          enum: [OWN_WITH_MORTGAGE, OWN_OUTRIGHT, RENT, OTHER]
+          example: "OWN_WITH_MORTGAGE"
+        monthlyHousingPayment:
+          type: number
+          format: double
+          example: 2200.00
+
+    EmploymentDetails:
+      type: object
+      required:
+        - employerName
+        - jobTitle
+        - employmentType
+        - monthlyGrossIncome
+        - monthsAtCurrentEmployer
+      properties:
+        employerName:
+          type: string
+          example: "AeroTech Solutions"
+        jobTitle:
+          type: string
+          example: "Lead Architect"
+        employmentType:
+          type: string
+          enum: [FULL_TIME, PART_TIME, CONTRACTOR, SELF_EMPLOYED, RETIRED]
+          example: "FULL_TIME"
+        monthlyGrossIncome:
+          type: number
+          format: double
+          example: 11500.00
+        monthsAtCurrentEmployer:
+          type: integer
+          example: 48
+
+    VehicleApplicationDetails:
+      type: object
+      required:
+        - make
+        - model
+        - year
+        - purchasePrice
+      properties:
+        vehicleId:
+          type: string
+          example: "VEL-2026-GT"
+        vin:
+          type: string
+          example: "1HGCR2F83HA000123"
+        make:
+          type: string
+          example: "Mercedes-AMG"
+        model:
+          type: string
+          example: "GT 4-Door Coupe"
+        year:
+          type: integer
+          example: 2026
+        trim:
+          type: string
+          example: "63 S E Performance"
+        purchasePrice:
+          type: number
+          format: double
+          example: 98000.00
+
+    LoanStructureRequest:
+      type: object
+      required:
+        - downPayment
+        - tenureMonths
+        - requestedLoanAmount
+      properties:
+        downPayment:
+          type: number
+          format: double
+          example: 20000.00
+        tradeInValue:
+          type: number
+          format: double
+          default: 0.00
+          example: 5000.00
+        tenureMonths:
+          type: integer
+          example: 60
+        requestedLoanAmount:
+          type: number
+          format: double
+          example: 73000.00
+
+    ApplicationConsents:
+      type: object
+      required:
+        - creditCheckAuthorized
+        - termsAndConditionsAccepted
+      properties:
+        creditCheckAuthorized:
+          type: boolean
+          example: true
+        termsAndConditionsAccepted:
+          type: boolean
+          example: true
+        contactViaSmsAccepted:
+          type: boolean
+          default: false
+          example: true
+
+    FinancingApplicationResponse:
+      type: object
+      required:
+        - applicationId
+        - referenceNumber
+        - status
+        - submittedAt
+        - estimatedDecisionDate
+      properties:
+        applicationId:
+          type: string
+          example: "app_6745ef92a81c"
+        referenceNumber:
+          type: string
+          example: "VEL-APP-2026-0941"
+        status:
+          type: string
+          enum: [SUBMITTED, UNDER_REVIEW, APPROVED, CONDITIONAL_APPROVAL, NEEDS_DOCUMENTS, REJECTED]
+          example: "SUBMITTED"
+        submittedAt:
+          type: string
+          format: date-time
+        estimatedDecisionDate:
+          type: string
+          format: date
+          example: "2026-09-30"
+
+    FinancingApplicationDetail:
+      type: object
+      required:
+        - applicationId
+        - referenceNumber
+        - status
+        - submittedAt
+        - applicant
+        - vehicleDetails
+        - loanTerms
+        - requiredDocuments
+        - statusHistory
+      properties:
+        applicationId:
+          type: string
+        referenceNumber:
+          type: string
+        status:
+          type: string
+          enum: [SUBMITTED, UNDER_REVIEW, APPROVED, CONDITIONAL_APPROVAL, NEEDS_DOCUMENTS, REJECTED]
+        submittedAt:
+          type: string
+          format: date-time
+        applicant:
+          $ref: '#/components/schemas/ApplicantPersonalDetails'
+        employment:
+          $ref: '#/components/schemas/EmploymentDetails'
+        vehicleDetails:
+          $ref: '#/components/schemas/VehicleApplicationDetails'
+        loanTerms:
+          $ref: '#/components/schemas/LoanStructureRequest'
+        requiredDocuments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentItem'
+        statusHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusHistoryItem'
+
+    DocumentItem:
+      type: object
+      required:
+        - documentType
+        - status
+      properties:
+        documentId:
+          type: string
+        documentType:
+          type: string
+          enum: [GOVERNMENT_ID, PAY_SLIP, BANK_STATEMENT, PROOF_OF_RESIDENCE]
+          example: "GOVERNMENT_ID"
+        fileName:
+          type: string
+          example: "passport_front.pdf"
+        status:
+          type: string
+          enum: [PENDING, UPLOADED, VERIFIED, REJECTED]
+          example: "UPLOADED"
+        uploadedAt:
+          type: string
+          format: date-time
+
+    StatusHistoryItem:
+      type: object
+      required:
+        - status
+        - timestamp
+        - note
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        note:
+          type: string
+          example: "Application received and queued for review"
+
+    DocumentSubmissionRequest:
+      type: object
+      required:
+        - documentType
+        - fileName
+        - fileContentType
+        - fileContentBase64
+      properties:
+        documentType:
+          type: string
+          enum: [GOVERNMENT_ID, PAY_SLIP, BANK_STATEMENT, PROOF_OF_RESIDENCE]
+          example: "PAY_SLIP"
+        fileName:
+          type: string
+          example: "paystub_august.pdf"
+        fileContentType:
+          type: string
+          example: "application/pdf"
+        fileContentBase64:
+          type: string
+          description: Base64 encoded file payload
+
+    DocumentSubmissionResponse:
+      type: object
+      required:
+        - documentId
+        - documentType
+        - fileName
+        - status
+        - uploadTimestamp
+      properties:
+        documentId:
+          type: string
+          example: "doc_102849"
+        documentType:
+          type: string
+        fileName:
+          type: string
+        status:
+          type: string
+          example: "UPLOADED"
+        uploadTimestamp:
+          type: string
+          format: date-time
+
+    # --- Customer Enquiry Schemas ---
+    CreateEnquiryRequest:
+      type: object
+      required:
+        - enquiryType
+        - customer
+        - message
+      properties:
+        enquiryType:
+          type: string
+          enum: [GENERAL, VEHICLE_AVAILABILITY, PRICE_QUOTE, FINANCE_ASSISTANCE, TRADE_IN]
+          example: "FINANCE_ASSISTANCE"
+        customer:
+          $ref: '#/components/schemas/CustomerContact'
+        vehicleReference:
+          $ref: '#/components/schemas/VehicleReference'
+        preferredTimeSlot:
+          type: string
+          enum: [MORNING, AFTERNOON, EVENING, ANYTIME]
+          default: ANYTIME
+          example: "AFTERNOON"
+        postalCode:
+          type: string
+          example: "90210"
+        message:
+          type: string
+          example: "I am interested in financing the 2026 GT Coupe and would like to know available low-APR incentives."
+
+    CustomerContact:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - phone
+        - preferredContactMethod
+      properties:
+        firstName:
+          type: string
+          example: "Sophia"
+        lastName:
+          type: string
+          example: "Reynolds"
+        email:
+          type: string
+          format: email
+          example: "sophia.reynolds@example.com"
+        phone:
+          type: string
+          example: "+1-555-738-9901"
+        preferredContactMethod:
+          type: string
+          enum: [EMAIL, PHONE, WHATSAPP, SMS]
+          default: EMAIL
+          example: "EMAIL"
+
+    VehicleReference:
+      type: object
+      properties:
+        vehicleId:
+          type: string
+          example: "VEL-2026-GT"
+        make:
+          type: string
+          example: "Mercedes-AMG"
+        model:
+          type: string
+          example: "GT Coupe"
+        year:
+          type: integer
+          example: 2026
+
+    EnquiryResponse:
+      type: object
+      required:
+        - enquiryId
+        - referenceTicket
+        - status
+        - createdAt
+      properties:
+        enquiryId:
+          type: string
+          example: "enq_993412"
+        referenceTicket:
+          type: string
+          example: "VEL-ENQ-8821"
+        status:
+          type: string
+          enum: [NEW, ASSIGNED, IN_PROGRESS, RESOLVED, CANCELLED]
+          example: "NEW"
+        createdAt:
+          type: string
+          format: date-time
+
+    EnquiryDetail:
+      type: object
+      required:
+        - enquiryId
+        - referenceTicket
+        - enquiryType
+        - status
+        - customer
+        - message
+        - createdAt
+      properties:
+        enquiryId:
+          type: string
+        referenceTicket:
+          type: string
+        enquiryType:
+          type: string
+        status:
+          type: string
+        customer:
+          $ref: '#/components/schemas/CustomerContact'
+        vehicleReference:
+          $ref: '#/components/schemas/VehicleReference'
+        preferredTimeSlot:
+          type: string
+        postalCode:
+          type: string
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EnquiryCategoriesResponse:
+      type: object
+      required:
+        - categories
+        - contactMethods
+        - timeSlots
+      properties:
+        categories:
+          type: array
+          items:
+            type: string
+          example: ["GENERAL", "VEHICLE_AVAILABILITY", "PRICE_QUOTE", "FINANCE_ASSISTANCE", "TRADE_IN"]
+        contactMethods:
+          type: array
+          items:
+            type: string
+          example: ["EMAIL", "PHONE", "WHATSAPP", "SMS"]
+        timeSlots:
+          type: array
+          items:
+            type: string
+          example: ["MORNING", "AFTERNOON", "EVENING", "ANYTIME"]
+
+    TestDriveBookingRequest:
+      type: object
+      required:
+        - customer
+        - vehicleId
+        - preferredDate
+        - preferredTimeSlot
+        - driverLicenseValid
+      properties:
+        customer:
+          $ref: '#/components/schemas/CustomerContact'
+        vehicleId:
+          type: string
+          example: "VEL-2026-GT"
+        dealershipLocation:
+          type: string
+          example: "Velora Downtown Flagship - Beverly Hills"
+        preferredDate:
+          type: string
+          format: date
+          example: "2026-10-05"
+        preferredTimeSlot:
+          type: string
+          enum: [MORNING, AFTERNOON, EVENING]
+          example: "AFTERNOON"
+        driverLicenseValid:
+          type: boolean
+          example: true
+        notes:
+          type: string
+          example: "Interested in testing track mode handling."
+
+    TestDriveBookingResponse:
+      type: object
+      required:
+        - bookingId
+        - confirmationCode
+        - status
+        - scheduledDateTime
+        - dealershipLocation
+      properties:
+        bookingId:
+          type: string
+          example: "td_884920"
+        confirmationCode:
+          type: string
+          example: "VEL-DRIVE-7721"
+        status:
+          type: string
+          enum: [CONFIRMED, RESCHEDULED, CANCELLED]
+          example: "CONFIRMED"
+        scheduledDateTime:
+          type: string
+          format: date-time
+        dealershipLocation:
+          type: string
+          example: "Velora Downtown Flagship - Beverly Hills"
+
+    CancelEnquiryRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          example: "Changed mind / purchased vehicle elsewhere"
+        notes:
+          type: string
+          example: "Please remove from email follow-up."
+
+    # --- Catalog Schemas ---
+    VehicleSummary:
+      type: object
+      required:
+        - vehicleId
+        - make
+        - model
+        - year
+        - trim
+        - baseMSRP
+        - imageUrl
+      properties:
+        vehicleId:
+          type: string
+          example: "VEL-2026-GT"
+        make:
+          type: string
+          example: "Mercedes-AMG"
+        model:
+          type: string
+          example: "GT 4-Door Coupe"
+        year:
+          type: integer
+          example: 2026
+        trim:
+          type: string
+          example: "63 S E Performance"
+        baseMSRP:
+          type: number
+          format: double
+          example: 98500.00
+        category:
+          type: string
+          example: "Luxury Grand Tourer"
+        imageUrl:
+          type: string
+          example: "/images/mercedes-amg-gt-teal.jpg"
+
+    VehicleFinanceProfile:
+      type: object
+      required:
+        - vehicleId
+        - baseMSRP
+        - eligibleAprStarting
+        - maxTenureMonths
+        - estimatedMonthlyLease
+      properties:
+        vehicleId:
+          type: string
+          example: "VEL-2026-GT"
+        baseMSRP:
+          type: number
+          format: double
+          example: 98500.00
+        eligibleAprStarting:
+          type: number
+          format: double
+          example: 3.99
+        maxTenureMonths:
+          type: integer
+          example: 72
+        estimatedMonthlyLease:
+          type: number
+          format: double
+          example: 1240.00
+        availableIncentives:
+          type: array
+          items:
+            type: string
+          example: ["$2,500 Velora Luxury Loyalty Bonus", "0.9% APR for 36 months on select trims"]
