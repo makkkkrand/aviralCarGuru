@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { apiClient, PreQualificationResponse } from '../api/client';
-import { X, ShieldCheck, CheckCircle2, ArrowRight, Sparkles } from 'lucide-react';
+import { 
+  X, 
+  ShieldCheck, 
+  CheckCircle2, 
+  ArrowRight, 
+  Sparkles,
+  Lock,
+  DollarSign,
+  Briefcase
+} from 'lucide-react';
 
 interface PreQualificationModalProps {
   isOpen: boolean;
@@ -17,10 +26,10 @@ export const PreQualificationModal: React.FC<PreQualificationModalProps> = ({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [annualIncome, setAnnualIncome] = useState<number>(120000);
+  const [annualIncome, setAnnualIncome] = useState<number>(140000);
   const [employmentStatus, setEmploymentStatus] = useState<any>('EMPLOYED_FULL_TIME');
   const [estimatedCreditScore, setEstimatedCreditScore] = useState<any>('EXCELLENT_750_PLUS');
-  const [desiredLoanAmount, setDesiredLoanAmount] = useState<number>(65000);
+  const [desiredLoanAmount, setDesiredLoanAmount] = useState<number>(75000);
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PreQualificationResponse | null>(null);
@@ -52,213 +61,207 @@ export const PreQualificationModal: React.FC<PreQualificationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="glass-panel w-full max-w-xl p-6 sm:p-8 rounded-3xl border-white/15 bg-[#0b101d] max-h-[90vh] overflow-y-auto relative animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="glass-panel w-full max-w-xl p-6 sm:p-10 rounded-3xl border-white/15 bg-[#090e1c] max-h-[92vh] overflow-y-auto relative shadow-2xl">
         
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/10"
+          className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:border-cyan-400/50 transition-colors"
+          aria-label="Close Pre-Qualification Modal"
         >
           <X className="w-5 h-5" />
         </button>
 
         {!result ? (
           <div>
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-3">
-              <ShieldCheck className="w-4 h-4 text-cyan-400" />
-              <span>Soft Credit Inquiries Only</span>
+            {/* Modal Header */}
+            <div className="mb-8">
+              <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span>60-Second Soft Inquiry</span>
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-display font-black text-white">
+                Instant Pre-Qualification
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Zero impact on your credit bureau score. Calculate your eligible maximum vehicle tier and interest bracket.
+              </p>
             </div>
-            
-            <h3 className="font-display font-bold text-2xl sm:text-3xl text-white mb-2">
-              Instant Pre-Qualification
-            </h3>
-            <p className="text-slate-400 text-xs sm:text-sm mb-6">
-              Check your personalized financing power with zero impact on your credit bureau score.
-            </p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+            {error && (
+              <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
+                ⚠️ {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="form-label">First Name</label>
+                  <label className="form-label">First Name *</label>
                   <input
                     type="text"
                     required
+                    placeholder="e.g. Christian"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="form-control"
-                    placeholder="Alexander"
+                    className="form-control text-xs"
                   />
                 </div>
                 <div>
-                  <label className="form-label">Last Name</label>
+                  <label className="form-label">Last Name *</label>
                   <input
                     type="text"
                     required
+                    placeholder="e.g. Von Koenigsegg"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="form-control"
-                    placeholder="Wright"
+                    className="form-control text-xs"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="form-label">Email Address</label>
+                  <label className="form-label">Email Address *</label>
                   <input
                     type="email"
                     required
+                    placeholder="christian@domain.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="form-control"
-                    placeholder="alex@example.com"
+                    className="form-control text-xs"
                   />
                 </div>
                 <div>
-                  <label className="form-label">Phone Number</label>
+                  <label className="form-label">Phone Number *</label>
                   <input
                     type="tel"
                     required
+                    placeholder="+1 (555) 019-2831"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="form-control"
-                    placeholder="+1 (555) 012-3456"
+                    className="form-control text-xs"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="form-label">Gross Annual Income</label>
+                  <label className="form-label">Annual Gross Income ($) *</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
                     <input
                       type="number"
                       required
-                      min="10000"
                       value={annualIncome}
                       onChange={(e) => setAnnualIncome(Number(e.target.value))}
-                      className="form-control pl-7"
+                      className="form-control pl-8 text-xs font-mono"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="form-label">Desired Loan Size</label>
+                  <label className="form-label">Desired Loan Size ($) *</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
                     <input
                       type="number"
                       required
-                      min="5000"
                       value={desiredLoanAmount}
                       onChange={(e) => setDesiredLoanAmount(Number(e.target.value))}
-                      className="form-control pl-7"
+                      className="form-control pl-8 text-xs font-mono"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Employment Status</label>
                   <select
                     value={employmentStatus}
-                    onChange={(e) => setEmploymentStatus(e.target.value as any)}
-                    className="form-control"
+                    onChange={(e) => setEmploymentStatus(e.target.value)}
+                    className="form-control text-xs"
                   >
                     <option value="EMPLOYED_FULL_TIME">Employed Full-Time</option>
-                    <option value="EMPLOYED_PART_TIME">Employed Part-Time</option>
-                    <option value="SELF_EMPLOYED">Self-Employed / Business Owner</option>
-                    <option value="RETIRED">Retired / Investments</option>
-                    <option value="OTHER">Other</option>
+                    <option value="SELF_EMPLOYED">Self-Employed / Founder</option>
+                    <option value="EMPLOYED_PART_TIME">Part-Time</option>
+                    <option value="RETIRED">Retired / Investment</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="form-label">Estimated Credit Score</label>
+                  <label className="form-label">Self-Estimated Credit Score</label>
                   <select
                     value={estimatedCreditScore}
-                    onChange={(e) => setEstimatedCreditScore(e.target.value as any)}
-                    className="form-control"
+                    onChange={(e) => setEstimatedCreditScore(e.target.value)}
+                    className="form-control text-xs"
                   >
-                    <option value="EXCELLENT_750_PLUS">Excellent (750+)</option>
-                    <option value="GOOD_700_749">Good (700 - 749)</option>
-                    <option value="FAIR_640_699">Fair (640 - 699)</option>
-                    <option value="BELOW_640">Building Credit (&lt; 640)</option>
+                    <option value="EXCELLENT_750_PLUS">Tier 1: 750+ (Excellent)</option>
+                    <option value="GOOD_700_749">Tier 2: 700 - 749 (Good)</option>
+                    <option value="FAIR_640_699">Tier 3: 640 - 699 (Fair)</option>
+                    <option value="BELOW_640">Tier 4: Under 640 (Sub-Prime)</option>
                   </select>
                 </div>
               </div>
 
-              {error && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
-                  {error}
+              <div className="pt-4 flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-[11px] text-slate-400">
+                  <Lock className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Soft bureau pull only • 100% score safe</span>
                 </div>
-              )}
 
-              <div className="pt-2">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-pill btn-cyan w-full py-3.5 font-bold text-sm shadow-lg shadow-cyan-500/25"
+                  className="btn-pill btn-cyan text-xs py-3 px-7 font-bold shadow-lg shadow-cyan-500/25"
                 >
-                  {loading ? 'Evaluating Pre-Qualification...' : 'Check My Pre-Approval Now'}
+                  {loading ? 'Evaluating...' : 'Check My Pre-Approval'}
                 </button>
               </div>
+
             </form>
           </div>
         ) : (
           <div className="text-center py-4">
-            <div className="w-16 h-16 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center mx-auto mb-4 text-cyan-300">
+            <div className="w-16 h-16 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-400/50 flex items-center justify-center mx-auto mb-6 shadow-glow-cyan">
               <CheckCircle2 className="w-8 h-8" />
             </div>
 
-            <span className="text-xs uppercase tracking-widest text-cyan-400 font-bold block mb-1">
-              Pre-Approval Confirmed
-            </span>
-            <h3 className="font-display font-extrabold text-3xl text-white mb-2">
-              You are Pre-Approved!
+            <span className="badge-luxury mb-3">Pre-Qualification Successful</span>
+
+            <h3 className="text-3xl font-display font-black text-white mb-2">
+              Max Eligible Credit: ${result.maxEligibleAmount?.toLocaleString()}
             </h3>
-            <p className="text-slate-400 text-sm mb-6">
-              Congratulations! Your estimated financing profile qualifies for our prime luxury rate tiers.
+
+            <p className="text-slate-300 text-xs sm:text-sm max-w-md mx-auto mb-6">
+              Congratulations! Based on your preliminary profile, you qualify for Velora subsidized prime financing.
             </p>
 
-            <div className="glass-panel p-5 rounded-xl border-cyan-500/30 bg-cyan-950/20 text-left space-y-3 mb-6">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400">Pre-Approval Code</span>
-                <span className="font-mono font-bold text-cyan-300 text-base">{result.preApprovalReferenceCode}</span>
+            <div className="p-5 rounded-2xl bg-white/[0.04] border border-white/10 max-w-sm mx-auto mb-6 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Reference Code:</span>
+                <span className="font-mono text-cyan-400 font-bold">{result.preApprovalReferenceCode}</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400">Max Eligible Amount</span>
-                <span className="font-bold text-white text-lg">${result.maxEligibleAmount.toLocaleString()}</span>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Estimated APR Range:</span>
+                <span className="font-mono text-white font-bold">{result.estimatedAprFrom}% - {result.estimatedAprTo}% APR</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400">Estimated APR Range</span>
-                <span className="font-semibold text-cyan-400">{result.estimatedAprFrom}% - {result.estimatedAprTo}%</span>
-              </div>
-              <div className="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-white/10">
-                <span>Offer Valid Until</span>
-                <span>{result.validUntil}</span>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Offer Valid Until:</span>
+                <span className="font-mono text-slate-300">{result.validUntil}</span>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 onClick={() => {
                   onClose();
                   onProceedToApplication();
                 }}
-                className="btn-pill btn-cyan flex-1 py-3 text-sm font-bold flex items-center justify-center space-x-2"
+                className="btn-pill btn-cyan text-xs py-3.5 px-8 font-bold w-full sm:w-auto shadow-lg shadow-cyan-500/25 flex items-center justify-center space-x-2"
               >
-                <span>Proceed to Formal Application</span>
+                <span>Lock In Terms & Complete Application</span>
                 <ArrowRight className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onClose}
-                className="btn-pill btn-outline py-3 px-6 text-sm"
-              >
-                Done
               </button>
             </div>
           </div>
