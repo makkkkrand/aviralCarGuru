@@ -1,7 +1,5 @@
 package com.velora.carguru.exception;
 
-import com.velora.carguru.model.ApiError;
-import com.velora.carguru.model.FieldError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -9,49 +7,43 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleValidationException(MethodArgumentNotValidException ex) {
-        ApiError error = new ApiError();
-        error.setTimestamp(OffsetDateTime.now());
-        error.setStatus(HttpStatus.BAD_REQUEST.value());
-        error.setError("Bad Request");
-        error.setMessage("Request validation failed");
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("timestamp", OffsetDateTime.now());
+        errorDetails.put("status", HttpStatus.BAD_REQUEST.value());
+        errorDetails.put("error", "Validation Failed");
 
-        List<FieldError> fieldErrors = new ArrayList<>();
-        ex.getBindingResult().getFieldErrors().forEach(f -> {
-            FieldError fe = new FieldError();
-            fe.setField(f.getField());
-            fe.setMessage(f.getDefaultMessage());
-            fieldErrors.add(fe);
-        });
+        Map<String, String> fieldErrors = new HashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(error ->
+                fieldErrors.put(error.getField(), error.getDefaultMessage()));
+        errorDetails.put("fieldErrors", fieldErrors);
 
-        error.setFieldErrors(fieldErrors);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        return ResponseEntity.badRequest().body(errorDetails);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiError> handleIllegalArgumentException(IllegalArgumentException ex) {
-        ApiError error = new ApiError();
-        error.setTimestamp(OffsetDateTime.now());
-        error.setStatus(HttpStatus.BAD_REQUEST.value());
-        error.setError("Invalid Argument");
-        error.setMessage(ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("timestamp", OffsetDateTime.now());
+        error.put("status", HttpStatus.BAD_REQUEST.value());
+        error.put("error", ex.getMessage());
+        return ResponseEntity.badRequest().body(error);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleGenericException(Exception ex) {
-        ApiError error = new ApiError();
-        error.setTimestamp(OffsetDateTime.now());
-        error.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        error.setError("Internal Server Error");
-        error.setMessage(ex.getMessage() != null ? ex.getMessage() : "An unexpected server error occurred");
+    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("timestamp", OffsetDateTime.now());
+        error.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        error.put("error", "Internal server error");
+        error.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 }

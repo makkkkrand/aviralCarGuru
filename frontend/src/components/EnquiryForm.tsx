@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { apiClient, CreateEnquiryRequest, EnquiryResponse } from '../api/client';
-import { MessageSquare, Send, CheckCircle2, Phone, Mail, Clock, ShieldCheck, Sparkles } from 'lucide-react';
+import { CheckCircle2, Calendar, ArrowRight, Phone, Mail, MapPin, Check, HelpCircle, ShieldCheck, RefreshCw, Zap, Truck, Car, Percent } from 'lucide-react';
 
 interface EnquiryFormProps {
   onScheduleTestDrive?: () => void;
@@ -8,14 +8,16 @@ interface EnquiryFormProps {
 
 export const EnquiryForm: React.FC<EnquiryFormProps> = ({ onScheduleTestDrive }) => {
   const [enquiryType, setEnquiryType] = useState<any>('FINANCE_ASSISTANCE');
+  const [consultationTopic, setConsultationTopic] = useState('NEW_CAR_LOAN');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [preferredContactMethod, setPreferredContactMethod] = useState<any>('EMAIL');
+  const [preferredContactMethod, setPreferredContactMethod] = useState<any>('PHONE');
   const [preferredTimeSlot, setPreferredTimeSlot] = useState<any>('AFTERNOON');
-  const [postalCode, setPostalCode] = useState('90210');
-  const [message, setMessage] = useState('I would like to speak with a finance specialist regarding bespoke lease incentives.');
+  const [postalCode, setPostalCode] = useState('400051');
+  const [budgetOrLoanAmount, setBudgetOrLoanAmount] = useState('₹15 - ₹35 Lakhs');
+  const [message, setMessage] = useState('I need expert advice on the lowest available auto loan interest rate, down payment options, and pre-approved offers for my vehicle purchase.');
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<EnquiryResponse | null>(null);
@@ -25,6 +27,8 @@ export const EnquiryForm: React.FC<EnquiryFormProps> = ({ onScheduleTestDrive })
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    const fullMessage = `[Topic: ${consultationTopic}] [Budget/Loan: ${budgetOrLoanAmount}] ${message}`;
 
     const payload: CreateEnquiryRequest = {
       enquiryType,
@@ -37,238 +41,304 @@ export const EnquiryForm: React.FC<EnquiryFormProps> = ({ onScheduleTestDrive })
       },
       preferredTimeSlot,
       postalCode,
-      message,
+      message: fullMessage,
     };
 
     try {
       const res = await apiClient.createEnquiry(payload);
       setResult(res);
     } catch (err: any) {
-      setError(err.message || 'Error sending enquiry');
+      setError(err.message || 'Error transmitting consultation request');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <section id="customer-enquiry" className="py-16">
-      <div className="container mx-auto px-6 max-w-4xl">
+    <div className="pt-20 pb-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
         
-        {/* Header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-3">
-            <MessageSquare className="w-4 h-4 text-cyan-400" />
-            <span>Dedicated Concierge Service</span>
+        {/* Page Header */}
+        <div className="max-w-2xl mb-8">
+          <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">
+            CarGuru Advisory Desk
           </div>
-          <h2 className="heading-hero text-4xl sm:text-5xl text-white mb-2">
-            CUSTOMER <span className="text-cyan-400">ENQUIRY</span>
-          </h2>
-          <p className="text-slate-400 text-sm sm:text-base">
-            Reach our private client advisors for vehicle reservations, trade-in valuations, and personalized credit structures.
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
+            Vehicle Finance Enquiry &amp; Consultation
+          </h1>
+          <p className="text-sm text-slate-600 leading-normal">
+            Get unbiased, expert financial guidance for any vehicle transaction in India. Whether you need a fresh car loan, EV subsidy consultation, loan balance transfer, or commercial fleet leasing, our certified gurus assist you free of charge.
           </p>
         </div>
 
-        {!result ? (
-          <div className="glass-panel p-6 sm:p-10 rounded-3xl bg-[#090e1c]/95 border-white/10 shadow-2xl">
-            {error && (
-              <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              
-              {/* Enquiry Topic Selection */}
-              <div>
-                <label className="form-label">Nature of Enquiry</label>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                  {[
-                    { id: 'FINANCE_ASSISTANCE', label: 'Financing & Lease' },
-                    { id: 'VEHICLE_AVAILABILITY', label: 'Fleet Availability' },
-                    { id: 'PRICE_QUOTE', label: 'Price Quote' },
-                    { id: 'TRADE_IN', label: 'Trade-In Valuation' },
-                    { id: 'GENERAL', label: 'General Enquiry' },
-                  ].map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setEnquiryType(cat.id)}
-                      className={`p-3 rounded-xl text-xs font-semibold text-center border transition-all ${
-                        enquiryType === cat.id
-                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400/60 shadow-sm shadow-cyan-500/10'
-                          : 'bg-white/5 text-slate-400 border-white/10 hover:border-white/20'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* Left Column: Consultation Pillars & Direct Contact (5 cols) */}
+          <div className="lg:col-span-5 space-y-5">
+            <div className="p-6 rounded-xl bg-white border border-slate-200/90 shadow-xs space-y-4">
+              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                What Our Gurus Consult On
               </div>
 
-              {/* Customer Contact Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="form-label">First Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="form-control"
-                    placeholder="Sophia"
-                  />
+              <div className="space-y-3.5 text-xs">
+                <div className="flex items-start space-x-2.5">
+                  <Car className="w-4 h-4 text-slate-700 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-slate-900 font-semibold">New Car &amp; SUV Loan Structuring</div>
+                    <p className="text-slate-600 leading-normal">Compare HDFC, ICICI, SBI, and Kotak terms. Zero dealership markups.</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="form-label">Last Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="form-control"
-                    placeholder="Reynolds"
-                  />
+
+                <div className="flex items-start space-x-2.5">
+                  <Percent className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-slate-900 font-semibold">Loan Refinancing &amp; Balance Transfer</div>
+                    <p className="text-slate-600 leading-normal">Switch high-interest loans (11%+) to 8.49% p.a. and lower monthly EMIs.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-2.5">
+                  <RefreshCw className="w-4 h-4 text-slate-700 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-slate-900 font-semibold">Pre-Owned Valuation &amp; Used Car Loans</div>
+                    <p className="text-slate-600 leading-normal">Fair market price assessment, RTO NOC verification, and financing up to 85%.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-2.5">
+                  <Zap className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-slate-900 font-semibold">Electric Vehicle Green Finance</div>
+                    <p className="text-slate-600 leading-normal">State subsidies, central FAME tax benefits, and preferential EV interest rates.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-2.5">
+                  <Truck className="w-4 h-4 text-slate-700 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-slate-900 font-semibold">Commercial Vehicles &amp; Fleet Leasing</div>
+                    <p className="text-slate-600 leading-normal">Working capital friendly asset financing for transport &amp; taxi businesses.</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="form-label">Email Address *</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="form-control"
-                    placeholder="sophia@example.com"
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Phone Number *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="form-control"
-                    placeholder="+1 (555) 987-6543"
-                  />
-                </div>
-              </div>
-
-              {/* Preferences: Contact Method & Time */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="form-label">Preferred Contact Channel</label>
-                  <select
-                    value={preferredContactMethod}
-                    onChange={(e) => setPreferredContactMethod(e.target.value as any)}
-                    className="form-control"
-                  >
-                    <option value="EMAIL">Email</option>
-                    <option value="PHONE">Direct Call</option>
-                    <option value="WHATSAPP">WhatsApp</option>
-                    <option value="SMS">SMS Text</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="form-label">Best Time to Connect</label>
-                  <select
-                    value={preferredTimeSlot}
-                    onChange={(e) => setPreferredTimeSlot(e.target.value as any)}
-                    className="form-control"
-                  >
-                    <option value="MORNING">Morning (9am - 12pm)</option>
-                    <option value="AFTERNOON">Afternoon (12pm - 5pm)</option>
-                    <option value="EVENING">Evening (5pm - 8pm)</option>
-                    <option value="ANYTIME">Anytime</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="form-label">Postal / Zip Code</label>
-                  <input
-                    type="text"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    className="form-control"
-                    placeholder="90210"
-                  />
-                </div>
-              </div>
-
-              {/* Message */}
-              <div>
-                <label className="form-label">Your Message or Requirements *</label>
-                <textarea
-                  required
-                  rows={4}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="form-control resize-none"
-                  placeholder="Tell us what you're looking for..."
-                />
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                <span className="text-xs text-slate-500">
-                  By submitting, you consent to secure advisor contact under our privacy policy.
+              {/* Guarantees */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                <span className="flex items-center space-x-1">
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>100% Free Advice</span>
                 </span>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-pill btn-cyan px-8 py-3.5 text-sm font-bold flex items-center space-x-2 shadow-lg shadow-cyan-500/25 w-full sm:w-auto justify-center"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>{loading ? 'Submitting Enquiry...' : 'Submit Customer Enquiry'}</span>
-                </button>
+                <span className="flex items-center space-x-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Zero CIBIL Impact</span>
+                </span>
               </div>
+            </div>
 
-            </form>
+            {/* Direct Helpline Card */}
+            <div className="p-5 rounded-xl bg-slate-900 text-white space-y-3">
+              <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold">National Advisory Desk</div>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center space-x-2">
+                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold">+91 1800 209 8888 (Toll-Free Pan-India)</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Mail className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-slate-300">advisory@carguru.in</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-slate-300">Mumbai · Delhi NCR · Bengaluru · Hyderabad · Pune</span>
+                </div>
+              </div>
+            </div>
           </div>
-        ) : (
-          /* Success confirmation */
-          <div className="glass-panel p-8 sm:p-12 rounded-3xl text-center bg-[#0a101f] border-cyan-500/30 animate-in fade-in">
-            <div className="w-16 h-16 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center mx-auto mb-4 text-cyan-300">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
 
-            <span className="text-xs font-bold uppercase tracking-widest text-cyan-400 block mb-1">
-              Enquiry Dispatched
-            </span>
-            <h3 className="text-3xl font-display font-extrabold text-white mb-2">
-              We Received Your Enquiry
-            </h3>
-            <p className="text-slate-300 text-sm max-w-md mx-auto mb-6">
-              A Velora customer concierge specialist has been assigned to your ticket and will reach out via {preferredContactMethod}.
-            </p>
+          {/* Right Column: Inquiry Form (7 cols) */}
+          <div className="lg:col-span-7">
+            <div className="p-6 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+              
+              {result ? (
+                <div className="py-6 text-center space-y-4">
+                  <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
+                    <Check className="w-5 h-5" />
+                  </div>
 
-            <div className="glass-panel p-4 rounded-xl max-w-sm mx-auto mb-6 bg-cyan-950/20 border-cyan-500/30 text-center">
-              <span className="text-xs text-slate-400 block mb-1">Reference Ticket</span>
-              <span className="font-mono text-xl font-bold text-cyan-300">{result.referenceTicket}</span>
-            </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 mb-1">Consultation Request Logged</h3>
+                    <p className="text-xs text-slate-600 max-w-sm mx-auto">
+                      A certified CarGuru vehicle finance specialist will contact you during your preferred time window.
+                    </p>
+                  </div>
 
-            <div className="flex justify-center gap-3">
-              <button
-                onClick={() => setResult(null)}
-                className="btn-pill btn-cyan px-6 py-3 text-sm font-semibold"
-              >
-                Send Another Message
-              </button>
-              {onScheduleTestDrive && (
-                <button
-                  onClick={onScheduleTestDrive}
-                  className="btn-pill btn-outline px-6 py-3 text-sm"
-                >
-                  Schedule Test Drive
-                </button>
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-left space-y-1.5 max-w-xs mx-auto">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-medium">Ticket Reference:</span>
+                      <span className="font-mono font-bold text-slate-900">{result.referenceTicket}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-medium">Status:</span>
+                      <span className="font-semibold text-emerald-700">{result.status}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-medium">Assigned To:</span>
+                      <span className="text-slate-800">Senior Auto Finance Advisor</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setResult(null)}
+                    className="px-4 py-2 bg-slate-900 text-white text-xs font-medium rounded-lg hover:bg-slate-800 transition-colors shadow-xs"
+                  >
+                    Request Another Consultation
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">
+                    Book Free Vehicle Finance Consultation
+                  </div>
+
+                  {error && (
+                    <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 rounded text-xs">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Consultation Topic</label>
+                      <select
+                        value={consultationTopic}
+                        onChange={(e) => setConsultationTopic(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                      >
+                        <option value="NEW_CAR_LOAN">New Car / SUV Financing Advice</option>
+                        <option value="REFINANCE_TRANSFER">Loan Balance Transfer &amp; Lower EMI</option>
+                        <option value="USED_CAR_LOAN">Pre-Owned Vehicle Loan &amp; Valuation</option>
+                        <option value="EV_GREEN_LOAN">Electric Vehicle Subsidies &amp; Rates</option>
+                        <option value="COMMERCIAL_FLEET">Commercial Fleet Leasing &amp; Credit</option>
+                        <option value="TOP_UP_LOAN">Top-Up Cash Loan on Existing Car</option>
+                        <option value="CIBIL_COUNSELING">CIBIL Score Verification &amp; Repair</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Target Budget / Loan Amount</label>
+                      <select
+                        value={budgetOrLoanAmount}
+                        onChange={(e) => setBudgetOrLoanAmount(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                      >
+                        <option value="Under ₹8 Lakhs">Under ₹8 Lakhs (Entry/Used)</option>
+                        <option value="₹8 - ₹15 Lakhs">₹8 - ₹15 Lakhs (Hatchback/Sedan)</option>
+                        <option value="₹15 - ₹35 Lakhs">₹15 - ₹35 Lakhs (SUV / EV)</option>
+                        <option value="₹35 - ₹75 Lakhs">₹35 - ₹75 Lakhs (Premium / Fortuner / EV)</option>
+                        <option value="Above ₹75 Lakhs">Above ₹75 Lakhs (Luxury Marque)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">First Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Mobile Phone (India)</label>
+                      <input
+                        type="tel"
+                        required
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+91 98201 92830"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Preferred Contact Mode</label>
+                      <select
+                        value={preferredContactMethod}
+                        onChange={(e) => setPreferredContactMethod(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                      >
+                        <option value="PHONE">Direct Phone Call</option>
+                        <option value="WHATSAPP">WhatsApp Summary &amp; Call</option>
+                        <option value="EMAIL">Email Consultation</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">PIN Code (6-digit)</label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={6}
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        placeholder="400051"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-600 font-medium block mb-1">Consultation Requirements &amp; Queries</label>
+                    <textarea
+                      rows={3}
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-2 bg-slate-900 text-white hover:bg-slate-800 font-medium text-xs rounded-lg transition-colors shadow-xs disabled:opacity-50"
+                    >
+                      {loading ? 'Routing to Certified Advisor...' : 'Request Free Finance Consultation'}
+                    </button>
+                  </div>
+                </form>
               )}
+
             </div>
           </div>
-        )}
+
+        </div>
 
       </div>
-    </section>
+    </div>
   );
 };

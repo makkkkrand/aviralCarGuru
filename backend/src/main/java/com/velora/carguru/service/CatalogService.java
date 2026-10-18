@@ -19,7 +19,6 @@ public class CatalogService {
     }
 
     private void initFleet() {
-        // Fleet seeded matching the Velora luxury performance theme
         VehicleSummary v1 = new VehicleSummary();
         v1.setVehicleId("VEL-2026-GT");
         v1.setMake("Mercedes-AMG");
@@ -105,7 +104,6 @@ public class CatalogService {
                     profile.setBaseMSRP(v.getBaseMSRP());
                     profile.setEligibleAprStarting(3.99);
                     profile.setMaxTenureMonths(72);
-                    // Approx 36-month lease estimate with 10% down
                     double estLease = Math.round((v.getBaseMSRP() * 0.0125) * 100.0) / 100.0;
                     profile.setEstimatedMonthlyLease(estLease);
                     profile.setAvailableIncentives(List.of(

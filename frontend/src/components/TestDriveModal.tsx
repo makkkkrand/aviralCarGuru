@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { apiClient, TestDriveBookingResponse } from '../api/client';
-import { X, Calendar, MapPin, CheckCircle2, Car, Clock, ShieldCheck } from 'lucide-react';
+import { X, Calendar, CheckCircle2, Clock, MapPin, Check } from 'lucide-react';
 
 interface TestDriveModalProps {
   isOpen: boolean;
@@ -11,18 +11,19 @@ interface TestDriveModalProps {
 export const TestDriveModal: React.FC<TestDriveModalProps> = ({
   isOpen,
   onClose,
-  defaultVehicleId = 'VEL-2026-GT',
+  defaultVehicleId = 'CG-2026-XUV700',
 }) => {
   const [vehicleId, setVehicleId] = useState(defaultVehicleId);
-  const [dealershipLocation, setDealershipLocation] = useState('Velora Beverly Hills Experience Center');
-  const [preferredDate, setPreferredDate] = useState('2026-10-06');
+  const [dealershipLocation, setDealershipLocation] = useState('CarGuru Experience Hub, BKC, Mumbai');
+  const todayPlus3 = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+  const [preferredDate, setPreferredDate] = useState(todayPlus3);
   const [preferredTimeSlot, setPreferredTimeSlot] = useState<any>('AFTERNOON');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [driverLicenseValid, setDriverLicenseValid] = useState(true);
-  const [notes, setNotes] = useState('Looking forward to testing the dynamic handling mode.');
+  const [notes, setNotes] = useState('Interested in evaluating vehicle driving comfort, fuel/range efficiency, and financing options.');
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestDriveBookingResponse | null>(null);
@@ -59,205 +60,207 @@ export const TestDriveModal: React.FC<TestDriveModalProps> = ({
     }
   };
 
+  const experienceCenters = [
+    'CarGuru Experience Hub, BKC, Mumbai',
+    'CarGuru Partner Atelier, Aerocity, New Delhi',
+    'CarGuru Experience Center, UB City, Bengaluru',
+    'CarGuru Delivery Hub, Jubilee Hills, Hyderabad',
+    'CarGuru Hub, Viman Nagar, Pune',
+    'CarGuru Doorstep VIP Test Drive (Pan-India at Residence / Office)',
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="glass-panel w-full max-w-xl p-6 sm:p-8 rounded-3xl border-white/15 bg-[#0b101d] max-h-[90vh] overflow-y-auto relative animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+      <div className="w-full max-w-lg p-6 rounded-xl border border-slate-200 bg-white max-h-[90vh] overflow-y-auto relative shadow-xl">
         
+        {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/10"
+          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
-        {!result ? (
-          <div>
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-3">
-              <Car className="w-4 h-4 text-cyan-400" />
-              <span>Track & Highway Experience</span>
+        {result ? (
+          <div className="text-center py-4 space-y-4">
+            <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto">
+              <Check className="w-5 h-5" />
             </div>
 
-            <h3 className="font-display font-bold text-2xl sm:text-3xl text-white mb-2">
-              Book a VIP Test Drive
-            </h3>
-            <p className="text-slate-400 text-xs sm:text-sm mb-6">
-              Experience unfiltered luxury performance. A dedicated product specialist will prepare the vehicle for your arrival.
-            </p>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Vehicle</label>
-                  <select
-                    value={vehicleId}
-                    onChange={(e) => setVehicleId(e.target.value)}
-                    className="form-control"
-                  >
-                    <option value="VEL-2026-GT">Mercedes-AMG GT Coupe</option>
-                    <option value="VEL-2026-TAYCAN">Porsche Taycan Turbo S</option>
-                    <option value="VEL-2026-RSETRON">Audi RS e-tron GT</option>
-                    <option value="VEL-2026-M8">BMW M8 Competition</option>
-                    <option value="VEL-2026-DB12">Aston Martin DB12</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label">Showroom Location</label>
-                  <select
-                    value={dealershipLocation}
-                    onChange={(e) => setDealershipLocation(e.target.value)}
-                    className="form-control text-xs"
-                  >
-                    <option value="Velora Beverly Hills Experience Center">Beverly Hills Center</option>
-                    <option value="Velora Manhattan Private Gallery">Manhattan Gallery</option>
-                    <option value="Velora Miami Waterfront Showroom">Miami Waterfront</option>
-                  </select>
-                </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-emerald-700 font-semibold mb-0.5">
+                Evaluation Reserved
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Preferred Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={preferredDate}
-                    onChange={(e) => setPreferredDate(e.target.value)}
-                    className="form-control"
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Preferred Time</label>
-                  <select
-                    value={preferredTimeSlot}
-                    onChange={(e) => setPreferredTimeSlot(e.target.value as any)}
-                    className="form-control"
-                  >
-                    <option value="MORNING">Morning (10:00 AM)</option>
-                    <option value="AFTERNOON">Afternoon (2:00 PM)</option>
-                    <option value="EVENING">Evening (5:30 PM)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">First Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="form-control"
-                    placeholder="Alexander"
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Last Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="form-control"
-                    placeholder="Wright"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Email *</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="form-control"
-                    placeholder="alex@example.com"
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Phone *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="form-control"
-                    placeholder="+1 (555) 012-3456"
-                  />
-                </div>
-              </div>
-
-              <label className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={driverLicenseValid}
-                  onChange={(e) => setDriverLicenseValid(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <span className="text-xs text-slate-300">
-                  I confirm that I possess a valid, unexpired driver's license (must be presented upon arrival).
-                </span>
-              </label>
-
-              {error && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
-                  {error}
-                </div>
-              )}
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={loading || !driverLicenseValid}
-                  className="btn-pill btn-cyan w-full py-3.5 font-bold text-sm shadow-lg shadow-cyan-500/25"
-                >
-                  {loading ? 'Confirming Appointment...' : 'Schedule Private Test Drive'}
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : (
-          <div className="text-center py-4">
-            <div className="w-16 h-16 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center mx-auto mb-4 text-cyan-300">
-              <CheckCircle2 className="w-8 h-8" />
+              <h3 className="font-bold text-lg text-slate-900 mb-1">
+                Test Drive Appointment Confirmed
+              </h3>
+              <p className="text-xs text-slate-600 max-w-sm mx-auto">
+                Your test drive and vehicle consultation appointment has been reserved with a CarGuru automotive specialist.
+              </p>
             </div>
 
-            <span className="text-xs uppercase tracking-widest text-cyan-400 font-bold block mb-1">
-              Reservation Confirmed
-            </span>
-            <h3 className="font-display font-extrabold text-3xl text-white mb-2">
-              You're Scheduled!
-            </h3>
-            <p className="text-slate-400 text-sm mb-6">
-              Your private test drive appointment has been booked. Please bring your driver's license.
-            </p>
-
-            <div className="glass-panel p-5 rounded-xl border-cyan-500/30 bg-cyan-950/20 text-left space-y-3 mb-6">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400">Confirmation Code</span>
-                <span className="font-mono font-bold text-cyan-300 text-base">{result.confirmationCode}</span>
+            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-left space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Confirmation Code</span>
+                <span className="font-mono font-bold text-slate-900">{result.confirmationCode}</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400">Location</span>
-                <span className="font-semibold text-white">{result.dealershipLocation}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Hub / Location</span>
+                <span className="font-semibold text-slate-900">{dealershipLocation}</span>
               </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400">Status</span>
-                <span className="px-2 py-0.5 rounded text-xs bg-cyan-500/20 text-cyan-300 font-bold">
-                  {result.status}
-                </span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Scheduled Date</span>
+                <span className="font-semibold text-slate-900">{preferredDate} ({preferredTimeSlot})</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">Status</span>
+                <span className="font-semibold text-emerald-700">{result.status}</span>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="btn-pill btn-cyan w-full py-3 text-sm font-semibold"
+              className="px-5 py-2 bg-slate-900 text-white font-medium text-xs rounded-lg hover:bg-slate-800 transition-colors shadow-xs"
             >
-              Done
+              Close Confirmation
             </button>
           </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">
+                CarGuru Pan-India Network
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Book Test Drive &amp; Vehicle Review
+              </h2>
+              <p className="text-xs text-slate-600">
+                Schedule a test drive at your nearest CarGuru Hub or request a doorstep evaluation at your residence.
+              </p>
+            </div>
+
+            {error && (
+              <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 rounded text-xs">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-slate-600 font-medium block mb-1">Select Hub or Doorstep Delivery</label>
+                <select
+                  value={dealershipLocation}
+                  onChange={(e) => setDealershipLocation(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                >
+                  {experienceCenters.map((loc) => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-600 font-medium block mb-1">Preferred Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={preferredDate}
+                    onChange={(e) => setPreferredDate(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-600 font-medium block mb-1">Time Slot</label>
+                  <select
+                    value={preferredTimeSlot}
+                    onChange={(e) => setPreferredTimeSlot(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                  >
+                    <option value="MORNING">Morning (10:00 AM - 1:00 PM)</option>
+                    <option value="AFTERNOON">Afternoon (2:00 PM - 5:00 PM)</option>
+                    <option value="EVENING">Evening (5:00 PM - 7:30 PM)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-600 font-medium block mb-1">First Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-600 font-medium block mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-600 font-medium block mb-1">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-600 font-medium block mb-1">Mobile Phone (India)</label>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 98201 92830"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-600 font-medium block mb-1">Special Preferences / Driving Route</label>
+                <textarea
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                />
+              </div>
+
+              <label className="flex items-center space-x-2 text-slate-700 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={driverLicenseValid}
+                  onChange={(e) => setDriverLicenseValid(e.target.checked)}
+                  className="rounded text-slate-900 focus:ring-0"
+                />
+                <span>I hold a valid permanent Indian Driving Licence (LMV category).</span>
+              </label>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2 bg-slate-900 text-white hover:bg-slate-800 font-medium text-xs rounded-lg transition-colors shadow-xs disabled:opacity-50"
+              >
+                {loading ? 'Reserving Schedule...' : 'Confirm Test Drive Appointment'}
+              </button>
+            </div>
+          </form>
         )}
 
       </div>
