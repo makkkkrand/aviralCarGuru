@@ -99,7 +99,6 @@ public class EnquiryService {
         doc.setNotes(request.getNotes());
         doc.setStatus("CONFIRMED");
 
-        // Schedule at 2:00 PM on preferred date
         OffsetDateTime scheduled = request.getPreferredDate().atTime(14, 0).atOffset(ZoneOffset.UTC);
         doc.setScheduledDateTime(scheduled);
         doc.setCreatedAt(OffsetDateTime.now());

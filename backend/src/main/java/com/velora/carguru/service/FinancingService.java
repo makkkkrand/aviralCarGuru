@@ -52,7 +52,6 @@ public class FinancingService {
             totalInterest = Math.max(0.0, Math.round((totalCost - netCapitalizedCost) * 100.0) / 100.0);
         }
 
-        // Build annual amortization schedule
         List<AmortizationYear> schedule = new ArrayList<>();
         double remainingBalance = netCapitalizedCost;
         double monthlyRate = (apr / 100.0) / 12.0;
@@ -137,7 +136,6 @@ public class FinancingService {
         double income = request.getAnnualIncome();
         double desiredLoan = request.getDesiredLoanAmount();
 
-        // Conservative DTI luxury qualification logic
         double maxLoan = Math.round((income * 0.75) * 100.0) / 100.0;
         boolean eligible = desiredLoan <= maxLoan;
 
@@ -163,7 +161,6 @@ public class FinancingService {
         doc.setLoanTerms(request.getLoanTerms());
         doc.setConsents(request.getConsents());
 
-        // Default required documents
         List<DocumentItem> docs = new ArrayList<>();
         DocumentItem idDoc = new DocumentItem();
         idDoc.setDocumentId("DOC-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase());
@@ -179,7 +176,6 @@ public class FinancingService {
 
         doc.setRequiredDocuments(docs);
 
-        // Timeline
         List<StatusHistoryItem> history = new ArrayList<>();
         StatusHistoryItem init = new StatusHistoryItem();
         init.setStatus("SUBMITTED");

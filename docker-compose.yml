@@ -1,70 +1,41 @@
 version: '3.8'
 
 services:
-  # ----------------------------------------------------------------------------
-  # Database Service (MongoDB 7.0)
-  # ----------------------------------------------------------------------------
   mongodb:
     image: mongo:7.0
-    container_name: carguru-mongodb
-    restart: unless-stopped
+    container_name: carguru-mongo
     ports:
       - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: carguru_db
     volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - carguru-network
+      - mongo-data:/data/db
 
-  # ----------------------------------------------------------------------------
-  # Backend Microservice (Spring Boot 3.3 + Java 21)
-  # ----------------------------------------------------------------------------
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     container_name: carguru-backend
-    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
       SPRING_DATA_MONGODB_HOST: mongodb
       SPRING_DATA_MONGODB_PORT: 27017
       SPRING_DATA_MONGODB_DATABASE: carguru_db
-      JAVA_TOOL_OPTIONS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
     depends_on:
-      mongodb:
-        condition: service_healthy
-    networks:
-      - carguru-network
+      - mongodb
 
-  # ----------------------------------------------------------------------------
-  # Frontend Application (React + Vite + Nginx)
-  # ----------------------------------------------------------------------------
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: carguru-frontend
-    restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-3001}:80"
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://backend:8080
     depends_on:
       - backend
-    networks:
-      - carguru-network
 
 volumes:
-  mongo_data:
-    driver: local
-
-networks:
-  carguru-network:
-    driver: bridge
+  mongo-data:

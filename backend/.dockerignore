@@ -1,5 +1,7 @@
 target/
-.idea/
-*.iml
+.mvn/
+*.class
+*.log
 .git
-.gitignore
+.idea
+*.iml

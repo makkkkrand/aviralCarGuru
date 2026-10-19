@@ -1,159 +1,151 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
-import { Hero } from './components/Hero';
+import { HomeOverview } from './components/HomeOverview';
+import { FleetCatalog } from './components/FleetCatalog';
 import { FinancingCalculator } from './components/FinancingCalculator';
 import { FinancingApplicationWizard } from './components/FinancingApplicationWizard';
-import { EnquiryForm } from './components/EnquiryForm';
-import { FleetCatalog } from './components/FleetCatalog';
 import { ApplicationTracker } from './components/ApplicationTracker';
+import { EnquiryForm } from './components/EnquiryForm';
 import { PreQualificationModal } from './components/PreQualificationModal';
 import { TestDriveModal } from './components/TestDriveModal';
+import { DocumentChecklist, LoanApplicantType } from './components/DocumentChecklist';
 import { VehicleSummary } from './api/client';
-import { 
-  ShieldCheck, 
-  Sparkles, 
-  Car, 
-  Code, 
-  Server, 
-  Layers, 
-  Compass, 
-  Calculator, 
-  Lock, 
-  ArrowUpRight,
-  ChevronRight
-} from 'lucide-react';
+import { Car, MapPin, Phone, HelpCircle, ShieldCheck, FileText } from 'lucide-react';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<string>('hero');
+  // Sync page state with window hash (supporting direct bookmarking and browser back/forward)
+  const getInitialTab = (): string => {
+    const hash = window.location.hash.replace('#', '').replace('/', '');
+    const validTabs = ['overview', 'fleet', 'calculator', 'documents', 'apply', 'track', 'concierge'];
+    return validTabs.includes(hash) ? hash : 'overview';
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab());
   const [preQualifyOpen, setPreQualifyOpen] = useState<boolean>(false);
   const [testDriveOpen, setTestDriveOpen] = useState<boolean>(false);
-  const [testDriveVehicleId, setTestDriveVehicleId] = useState<string>('VEL-2026-GT');
+  const [testDriveVehicleId, setTestDriveVehicleId] = useState<string>('CG-2026-XUV700');
+
+  // Document checklist modal state
+  const [checklistModalOpen, setChecklistModalOpen] = useState<boolean>(false);
+  const [checklistCategory, setChecklistCategory] = useState<LoanApplicantType>('salaried');
 
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleSummary | null>(null);
   const [initialLoanTerms, setInitialLoanTerms] = useState<any>(null);
   const [trackedReference, setTrackedReference] = useState<string>('');
 
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '').replace('/', '');
+      const validTabs = ['overview', 'fleet', 'calculator', 'documents', 'apply', 'track', 'concierge'];
+      if (validTabs.includes(hash)) {
+        setActiveTab(hash);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const navigateToPage = (tab: string) => {
+    setActiveTab(tab);
+    window.location.hash = tab;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSelectVehicleForFinancing = (vehicle: VehicleSummary) => {
     setSelectedVehicle(vehicle);
-    setActiveTab('calculator');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateToPage('calculator');
   };
 
   const handleApplyForLoan = (terms: any) => {
     setInitialLoanTerms(terms);
-    setActiveTab('apply');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateToPage('apply');
   };
 
   const handleTrackApplication = (ref: string) => {
     setTrackedReference(ref);
-    setActiveTab('track');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateToPage('track');
   };
 
-  const handleOpenTestDrive = (vehicleId = 'VEL-2026-GT') => {
+  const handleOpenTestDrive = (vehicleId = 'CG-2026-XUV700') => {
     setTestDriveVehicleId(vehicleId);
     setTestDriveOpen(true);
   };
 
-  return (
-    <div className="min-h-screen bg-[#05070d] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
-      {/* Dynamic Ambient Background Light Source */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(0,210,223,0.1),rgba(255,255,255,0))] pointer-events-none" />
+  const handleOpenChecklistModal = (category: LoanApplicantType = 'salaried') => {
+    setChecklistCategory(category);
+    setChecklistModalOpen(true);
+  };
 
-      {/* Modern Glassmorphic Navbar */}
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-slate-900 selection:text-white">
+      {/* Top Bar Navigation */}
       <Navbar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={navigateToPage}
         onOpenTestDrive={() => handleOpenTestDrive()}
       />
 
-      {/* Router View Port */}
-      <main className="flex-1 relative z-10">
-        {activeTab === 'hero' && (
-          <>
-            <Hero
-              onExploreFleet={() => {
-                setActiveTab('fleet');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              onOpenCalculator={() => {
-                setActiveTab('calculator');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              onPreQualify={() => setPreQualifyOpen(true)}
-            />
-            
-            <div className="border-t border-white/5">
-              <FleetCatalog
-                onSelectVehicleForFinancing={handleSelectVehicleForFinancing}
-                onBookTestDrive={handleOpenTestDrive}
-              />
-            </div>
-
-            <div className="border-t border-white/5 bg-gradient-to-b from-[#05070d] via-[#090d19] to-[#05070d]">
-              <FinancingCalculator
-                initialVehicle={selectedVehicle}
-                onApplyForLoan={handleApplyForLoan}
-                onPreQualify={() => setPreQualifyOpen(true)}
-              />
-            </div>
-
-            <div className="border-t border-white/5">
-              <EnquiryForm onScheduleTestDrive={() => handleOpenTestDrive()} />
-            </div>
-          </>
+      {/* Page Router — Strictly Page-Wise based on Menu */}
+      <main className="flex-1">
+        {activeTab === 'overview' && (
+          <HomeOverview
+            onNavigate={navigateToPage}
+            onSelectVehicleForFinancing={handleSelectVehicleForFinancing}
+            onOpenTestDrive={handleOpenTestDrive}
+            onOpenChecklistModal={handleOpenChecklistModal}
+          />
         )}
 
         {activeTab === 'fleet' && (
-          <div className="pt-24">
-            <FleetCatalog
-              onSelectVehicleForFinancing={handleSelectVehicleForFinancing}
-              onBookTestDrive={handleOpenTestDrive}
-            />
-          </div>
+          <FleetCatalog
+            onSelectVehicleForFinancing={handleSelectVehicleForFinancing}
+            onBookTestDrive={handleOpenTestDrive}
+          />
         )}
 
         {activeTab === 'calculator' && (
-          <div className="pt-24">
-            <FinancingCalculator
-              initialVehicle={selectedVehicle}
-              onApplyForLoan={handleApplyForLoan}
-              onPreQualify={() => setPreQualifyOpen(true)}
-            />
+          <FinancingCalculator
+            initialVehicle={selectedVehicle}
+            onApplyForLoan={handleApplyForLoan}
+            onPreQualify={() => setPreQualifyOpen(true)}
+            onOpenChecklist={() => handleOpenChecklistModal('salaried')}
+          />
+        )}
+
+        {activeTab === 'documents' && (
+          <div className="pt-20 pb-16">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6">
+              <DocumentChecklist
+                variant="embedded"
+                onProceedToApply={() => navigateToPage('apply')}
+              />
+            </div>
           </div>
         )}
 
         {activeTab === 'apply' && (
-          <div className="pt-24">
-            <FinancingApplicationWizard
-              initialTerms={initialLoanTerms}
-              onTrackApplication={handleTrackApplication}
-            />
-          </div>
+          <FinancingApplicationWizard
+            initialTerms={initialLoanTerms}
+            onTrackApplication={handleTrackApplication}
+          />
         )}
 
-        {activeTab === 'enquiry' && (
-          <div className="pt-24">
-            <EnquiryForm onScheduleTestDrive={() => handleOpenTestDrive()} />
-          </div>
+        {activeTab === 'concierge' && (
+          <EnquiryForm onScheduleTestDrive={() => handleOpenTestDrive()} />
         )}
 
         {activeTab === 'track' && (
-          <div className="pt-24">
-            <ApplicationTracker initialRef={trackedReference} />
-          </div>
+          <ApplicationTracker initialRef={trackedReference} />
         )}
       </main>
 
-      {/* Floating Modals */}
+      {/* Global Modals */}
       <PreQualificationModal
         isOpen={preQualifyOpen}
         onClose={() => setPreQualifyOpen(false)}
-        onProceedToApplication={() => {
-          setActiveTab('apply');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
+        onProceedToApplication={() => navigateToPage('apply')}
       />
 
       <TestDriveModal
@@ -162,130 +154,89 @@ export function App() {
         defaultVehicleId={testDriveVehicleId}
       />
 
-      {/* Ultra-Luxury Footer */}
-      <footer className="border-t border-white/10 bg-[#04060b] mt-24 pt-20 pb-14 relative z-10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-16">
-            
-            {/* Brand Col */}
-            <div className="lg:col-span-2">
-              <div 
-                onClick={() => {
-                  setActiveTab('hero');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="flex items-center space-x-3 cursor-pointer mb-5"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/25">
-                  <Car className="w-5 h-5 text-black stroke-[2.5]" />
+      {/* Document Checklist Modal Accessible from any context */}
+      <DocumentChecklist
+        isOpen={checklistModalOpen}
+        onClose={() => setChecklistModalOpen(false)}
+        variant="modal"
+        defaultCategory={checklistCategory}
+        onProceedToApply={() => {
+          setChecklistModalOpen(false);
+          navigateToPage('apply');
+        }}
+      />
+
+      {/* Professional CarGuru India Automotive Finance Footer */}
+      <footer className="border-t border-slate-200 bg-slate-900 text-slate-300 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8 text-xs">
+            <div className="space-y-2.5">
+              <div className="flex items-center space-x-2">
+                <div className="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center text-white">
+                  <Car className="w-4 h-4" />
                 </div>
-                <span className="font-display font-black text-2xl tracking-[0.2em] text-white">
-                  VELORA
-                </span>
+                <span className="font-bold text-base tracking-wider text-white">CARGURU INDIA</span>
               </div>
-              
-              <p className="text-xs text-slate-400 leading-relaxed mb-6 max-w-sm">
-                Bespoke high-performance automotive financing atelier and concierge acquisition gateway. Providing high-net-worth underwriting and subprime accessible credit programs.
+              <p className="text-slate-400 leading-normal max-w-xs">
+                Pan-India vehicle financing, loan calculators, CIBIL pre-qualification, and unbiased auto loan consultation for any vehicle segment across all 28 Indian states.
               </p>
-
-              <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-[11px] text-cyan-400 font-mono">
-                <Code className="w-3.5 h-3.5" />
-                <span>OpenAPI 3.1 Contract Synchronized</span>
+              <div className="text-[11px] text-slate-500 pt-1">
+                RBI Compliant Lending Syndicates (HDFC · ICICI · Kotak · SBI · Axis)
               </div>
             </div>
 
-            {/* Quick Links: Fleet */}
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-widest text-white mb-5 font-mono">
-                Performance Fleet
-              </h4>
-              <ul className="space-y-3 text-xs text-slate-400">
-                <li>
-                  <button onClick={() => { setActiveTab('fleet'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-cyan-400 transition-colors flex items-center space-x-1">
-                    <span>Mercedes-AMG GT Coupe</span>
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => { setActiveTab('fleet'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-cyan-400 transition-colors flex items-center space-x-1">
-                    <span>Porsche Taycan Turbo S</span>
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => { setActiveTab('fleet'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-cyan-400 transition-colors flex items-center space-x-1">
-                    <span>Audi RS e-tron GT</span>
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => { setActiveTab('fleet'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-cyan-400 transition-colors flex items-center space-x-1">
-                    <span>Aston Martin DB12</span>
-                  </button>
-                </li>
+              <div className="text-xs font-semibold uppercase tracking-wider text-white mb-3">Vehicle Financing</div>
+              <ul className="space-y-2 text-slate-400">
+                <li><button onClick={() => navigateToPage('fleet')} className="hover:text-white transition-colors">New Cars &amp; SUVs</button></li>
+                <li><button onClick={() => navigateToPage('fleet')} className="hover:text-white transition-colors">Electric Vehicles (EV Loans)</button></li>
+                <li><button onClick={() => navigateToPage('fleet')} className="hover:text-white transition-colors">Certified Pre-Owned Cars</button></li>
+                <li><button onClick={() => navigateToPage('fleet')} className="hover:text-white transition-colors">Commercial Vehicles &amp; Fleets</button></li>
+                <li><button onClick={() => navigateToPage('fleet')} className="hover:text-white transition-colors">Luxury &amp; Performance Fleet</button></li>
               </ul>
             </div>
 
-            {/* Quick Links: Finance */}
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-widest text-white mb-5 font-mono">
-                Finance & Advisory
-              </h4>
-              <ul className="space-y-3 text-xs text-slate-400">
-                <li>
-                  <button onClick={() => { setActiveTab('calculator'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-cyan-400 transition-colors">
-                    Loan & Amortization Calculator
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => setPreQualifyOpen(true)} className="hover:text-cyan-400 transition-colors">
-                    Instant Soft Pre-Approval
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => { setActiveTab('apply'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-cyan-400 transition-colors">
-                    Underwriting Application
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => { setActiveTab('track'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-cyan-400 transition-colors">
-                    Track Dossier & Upload Docs
-                  </button>
-                </li>
+              <div className="text-xs font-semibold uppercase tracking-wider text-white mb-3">Loan Advisory &amp; Tools</div>
+              <ul className="space-y-2 text-slate-400">
+                <li><button onClick={() => navigateToPage('calculator')} className="hover:text-white transition-colors">Auto Loan &amp; EMI Calculator</button></li>
+                <li><button onClick={() => navigateToPage('documents')} className="hover:text-white transition-colors">Required Documents (Salaried vs Business)</button></li>
+                <li><button onClick={() => navigateToPage('concierge')} className="hover:text-white transition-colors">Free Vehicle Finance Consultation</button></li>
+                <li><button onClick={() => navigateToPage('concierge')} className="hover:text-white transition-colors">Balance Transfer &amp; Refinancing</button></li>
+                <li><button onClick={() => setPreQualifyOpen(true)} className="hover:text-white transition-colors">Soft-Pull CIBIL Eligibility Check</button></li>
+                <li><button onClick={() => navigateToPage('track')} className="hover:text-white transition-colors">Application &amp; Ticket Status Tracker</button></li>
               </ul>
             </div>
 
-            {/* Microservice Architecture Info */}
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-widest text-white mb-5 font-mono">
-                System Topology
-              </h4>
-              <div className="space-y-2.5 text-xs text-slate-400">
-                <div className="flex items-center space-x-2">
-                  <Server className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Spring Boot 3.3.4 (Java 21)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Spring Data MongoDB</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Code className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Contract-First CodeGen</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>TLS 1.3 / OWASP Hardened</span>
-                </div>
-              </div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-white mb-3">Pan-India Support &amp; Hubs</div>
+              <ul className="space-y-2 text-slate-400">
+                <li className="flex items-center space-x-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>BKC, Mumbai (Maharashtra)</span>
+                </li>
+                <li className="flex items-center space-x-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>Aerocity, New Delhi (Delhi NCR)</span>
+                </li>
+                <li className="flex items-center space-x-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>UB City, Bengaluru (Karnataka)</span>
+                </li>
+                <li className="flex items-center space-x-1.5">
+                  <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>+91 1800 209 8888 (Toll-Free Pan-India)</span>
+                </li>
+              </ul>
             </div>
-
           </div>
 
-          {/* Bottom Bar */}
-          <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-            <span className="font-mono">© 2026 Velora CarGuru Atelier. All rights reserved.</span>
-            <div className="flex items-center space-x-6 text-[11px] font-mono">
-              <span className="text-slate-400">Privacy Protection</span>
-              <span className="text-slate-400">Security Architecture</span>
-              <span className="text-cyan-400/80">Production Gateway Active</span>
+          <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
+            <div>&copy; 2026 CarGuru India. All rights reserved. Pan-India vehicle loan processing across all 28 states.</div>
+            <div className="flex items-center space-x-3">
+              <span>State RTO Registration &amp; Tax Compliant</span>
+              <span>·</span>
+              <span>Bank-Grade 256-Bit SSL Encryption</span>
             </div>
           </div>
         </div>
