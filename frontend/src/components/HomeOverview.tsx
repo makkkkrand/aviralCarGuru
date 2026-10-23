@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient, VehicleSummary } from '../api/client';
 import { formatINRLakhCrore, formatINR } from '../utils/formatters';
-import { ArrowRight, Calculator, Compass, FileCheck, ShieldCheck, ChevronRight, CheckCircle2, HelpCircle, RefreshCw, Zap, Truck, Car, Percent, FileText, User, Building2 } from 'lucide-react';
+import { ArrowRight, Calculator, FileCheck, ShieldCheck, ChevronRight, CheckCircle2, HelpCircle, RefreshCw, Zap, Truck, Car, Percent, FileText, User, Building2, Check, Sparkles, TrendingUp, Award, Clock } from 'lucide-react';
 
 interface HomeOverviewProps {
   onNavigate: (page: string) => void;
@@ -19,6 +19,19 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
   const [featuredVehicles, setFeaturedVehicles] = useState<VehicleSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Quick interactive hero estimator
+  const [quickLoanAmount, setQuickLoanAmount] = useState<number>(2000000); // 20 Lakhs
+  const [quickTenure, setQuickTenure] = useState<number>(60); // 5 Years
+
+  // Approximate EMI calculation for the hero preview: P * r * (1+r)^n / ((1+r)^n - 1)
+  const calculateQuickEmi = (p: number, months: number, annualRate = 8.49) => {
+    const r = annualRate / 100 / 12;
+    const factor = Math.pow(1 + r, months);
+    return Math.round((p * (r * factor)) / (factor - 1));
+  };
+
+  const quickEmi = calculateQuickEmi(quickLoanAmount, quickTenure);
+
   useEffect(() => {
     apiClient.lookupVehicles('', '', 3)
       .then((res) => setFeaturedVehicles(res))
@@ -27,194 +40,481 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
   }, []);
 
   return (
-    <div className="pt-20 pb-16 space-y-16">
+    <div className="pt-16 pb-20 space-y-16">
       
-      {/* 1. Hero Section: All Vehicle Financing in India */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="pt-8 pb-10 max-w-3xl">
-          <div className="inline-flex items-center space-x-2 text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 mb-4">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>CarGuru India · Nationwide Vehicle Finance &amp; Advisory</span>
-          </div>
+      {/* 1. Hero Section: Executive Slate Grid Background with Live EMI Estimator & Trust Badges */}
+      <section className="bg-hero-grid text-white border-b border-slate-800 relative overflow-hidden py-14 lg:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            
+            {/* Left Column: Mission & Value Proposition */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="inline-flex items-center space-x-2 text-xs font-semibold text-emerald-400 bg-emerald-950/80 px-3 py-1.5 rounded-full border border-emerald-800/80 shadow-inner">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>CarGuru India · Nationwide Vehicle Finance &amp; Loan Advisory</span>
+              </div>
 
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 leading-snug mb-4">
-            Comprehensive vehicle financing &amp; loan consultation across India.
-          </h1>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
+                Any Vehicle. Any State.<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-sky-400">
+                  Preferential Auto Financing &amp; Advisory.
+                </span>
+              </h1>
 
-          <p className="text-slate-600 text-base sm:text-lg leading-relaxed mb-6 font-normal">
-            Whether you are financing a new car, electric vehicle, certified used automobile, luxury marque, or commercial fleet, CarGuru connects you to preferential interest rates (from 8.49% p.a.), instant CIBIL pre-qualification, and unbiased expert loan advisory across all 28 Indian states.
-          </p>
+              <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
+                CarGuru India bridges prospective vehicle owners, enterprises, and fleet operators with India’s leading lending syndicates. Enjoy starting rates from <strong className="text-emerald-400 font-semibold">8.49% p.a.</strong>, zero-impact CIBIL checks, transparent state RTO calculation, and dedicated advisory desks for all 28 Indian states.
+              </p>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => onNavigate('calculator')}
-              className="flex items-center space-x-2 px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 transition-colors rounded-lg font-medium text-xs shadow-xs"
-            >
-              <Calculator className="w-4 h-4" />
-              <span>Calculate Vehicle EMI</span>
-            </button>
-            <button
-              onClick={() => onNavigate('concierge')}
-              className="flex items-center space-x-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 transition-colors rounded-lg font-medium text-xs"
-            >
-              <HelpCircle className="w-4 h-4 text-slate-600" />
-              <span>Free Finance Consultation</span>
-            </button>
-            <button
-              onClick={() => onNavigate('fleet')}
-              className="flex items-center space-x-1.5 px-4 py-2.5 text-slate-700 hover:text-slate-900 font-medium text-xs transition-colors"
-            >
-              <span>Explore Vehicles</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  onClick={() => onNavigate('calculator')}
+                  className="flex items-center space-x-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all rounded-lg font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-98"
+                >
+                  <Calculator className="w-4 h-4" />
+                  <span>Launch EMI Calculator</span>
+                </button>
+                <button
+                  onClick={() => onNavigate('concierge')}
+                  className="flex items-center space-x-2 px-5 py-3 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all rounded-lg font-medium text-xs backdrop-blur-sm"
+                >
+                  <HelpCircle className="w-4 h-4 text-emerald-400" />
+                  <span>Free Loan Consultation</span>
+                </button>
+                {onOpenChecklistModal && (
+                  <button
+                    onClick={() => onOpenChecklistModal('salaried')}
+                    className="flex items-center space-x-2 px-5 py-3 bg-white/10 hover:bg-white/15 text-white border border-white/20 transition-all rounded-lg font-medium text-xs backdrop-blur-sm"
+                  >
+                    <FileText className="w-4 h-4 text-sky-400" />
+                    <span>Document Checklist</span>
+                  </button>
+                )}
+              </div>
 
-        {/* 3 Core Value Benchmarks */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-8 border-t border-slate-200">
-          <div className="p-6 rounded-xl bg-white border border-slate-200/90 shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs uppercase tracking-wider font-semibold text-slate-500">Starting Lending Rate</span>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">Low APR</span>
+              {/* Partner Banks Strip */}
+              <div className="pt-4 border-t border-slate-800/80">
+                <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-2.5">
+                  Lending Consortium &amp; Banking Partners
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300 font-mono">
+                  <span className="px-2.5 py-1 rounded bg-slate-800/60 border border-slate-700/60">HDFC Bank</span>
+                  <span className="px-2.5 py-1 rounded bg-slate-800/60 border border-slate-700/60">ICICI Bank</span>
+                  <span className="px-2.5 py-1 rounded bg-slate-800/60 border border-slate-700/60">SBI Wealth</span>
+                  <span className="px-2.5 py-1 rounded bg-slate-800/60 border border-slate-700/60">Kotak Mahindra</span>
+                  <span className="px-2.5 py-1 rounded bg-slate-800/60 border border-slate-700/60">Axis Bank</span>
+                </div>
+              </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 mb-1 tabular-nums">8.49% p.a.</div>
-            <p className="text-xs text-slate-600 leading-normal">
-              Tie-ups with India's premier auto loan lenders (HDFC, ICICI, SBI Wealth, Kotak, Axis Bank) with up to 100% on-road funding.
-            </p>
+
+            {/* Right Column: Interactive Quick-EMI Estimator Card */}
+            <div className="lg:col-span-5">
+              <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl backdrop-blur-md space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                      <TrendingUp className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                      Instant Loan Estimator
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-emerald-400 bg-emerald-950/90 px-2 py-0.5 rounded border border-emerald-800/80 font-mono font-semibold">
+                    8.49% Prime APR
+                  </span>
+                </div>
+
+                {/* Amount Selection */}
+                <div>
+                  <div className="flex justify-between items-center text-xs mb-2">
+                    <span className="text-slate-400 font-medium">Desired Loan Amount</span>
+                    <span className="text-white font-bold font-mono text-sm">{formatINRLakhCrore(quickLoanAmount)}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {[1000000, 2000000, 3500000, 5000000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setQuickLoanAmount(amt)}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-colors border ${
+                          quickLoanAmount === amt
+                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+                        }`}
+                      >
+                        {formatINRLakhCrore(amt)}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="range"
+                    min={300000}
+                    max={10000000}
+                    step={100000}
+                    value={quickLoanAmount}
+                    onChange={(e) => setQuickLoanAmount(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                </div>
+
+                {/* Tenure Selection */}
+                <div>
+                  <div className="flex justify-between items-center text-xs mb-2">
+                    <span className="text-slate-400 font-medium">Repayment Tenure</span>
+                    <span className="text-white font-bold font-mono text-sm">{quickTenure} Months ({(quickTenure / 12).toFixed(0)} Yrs)</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[36, 48, 60, 84].map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setQuickTenure(m)}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-colors border ${
+                          quickTenure === m
+                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold'
+                            : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+                        }`}
+                      >
+                        {m} Mo
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Estimated Monthly EMI Output */}
+                <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                  <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">
+                    Estimated Monthly Repayment (EMI)
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono tabular-nums">
+                      {formatINR(quickEmi)}
+                      <span className="text-xs text-slate-400 font-normal ml-1">/ month</span>
+                    </div>
+                    <span className="text-[11px] text-emerald-400 font-medium">Includes Principal &amp; Interest</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5">
+                  <button
+                    onClick={() => onNavigate('calculator')}
+                    className="flex-1 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-lg transition-colors text-center shadow-md active:scale-98"
+                  >
+                    Customize with State Taxes &rarr;
+                  </button>
+                  <button
+                    onClick={() => onNavigate('apply')}
+                    className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs rounded-lg border border-slate-700 transition-colors"
+                  >
+                    Apply Now
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          <div className="p-6 rounded-xl bg-white border border-slate-200/90 shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs uppercase tracking-wider font-semibold text-slate-500">Bureau Assessment</span>
-              <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">Zero Score Drop</span>
+          {/* National Coverage Metrics Bar */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 pt-8 border-t border-slate-800/80 text-center">
+            <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-800">
+              <div className="text-xl sm:text-2xl font-bold text-emerald-400 font-mono">₹4,850+ Cr</div>
+              <div className="text-xs text-slate-300 mt-0.5">Nationwide Loan Volume</div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 mb-1">Instant CIBIL Check</div>
-            <p className="text-xs text-slate-600 leading-normal">
-              Soft-pull credit verification in under 60 seconds. Know your eligible loan amount and EMI before visiting any dealership.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-xl bg-white border border-slate-200/90 shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs uppercase tracking-wider font-semibold text-slate-500">Vehicle Scope</span>
-              <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">All Categories</span>
+            <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-800">
+              <div className="text-xl sm:text-2xl font-bold text-white font-mono">28 States &amp; UTs</div>
+              <div className="text-xs text-slate-300 mt-0.5">750+ Registered RTOs</div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 mb-1">Any Vehicle Financed</div>
-            <p className="text-xs text-slate-600 leading-normal">
-              New passenger cars, electric SUVs, certified pre-owned, luxury models, balance transfer refinancing, and commercial fleets.
-            </p>
+            <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-800">
+              <div className="text-xl sm:text-2xl font-bold text-sky-400 font-mono">24 - 48 Hrs</div>
+              <div className="text-xs text-slate-300 mt-0.5">Average Sanction Speed</div>
+            </div>
+            <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-800">
+              <div className="text-xl sm:text-2xl font-bold text-emerald-400 font-mono">100% On-Road</div>
+              <div className="text-xs text-slate-300 mt-0.5">Available Funding Option</div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 2. Vehicle Financing Categories (Broad Business Scope) */}
+      {/* Dual Portal Showcase: Customer vs Admin/Analyst separation */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="mb-6">
-          <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Vehicle Financing Spectrum</div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-            What Kind of Vehicle Are You Financing?
-          </h2>
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center space-x-2 text-[10px] font-bold uppercase tracking-wider bg-white/10 px-2.5 py-1 rounded-full text-indigo-300">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Enterprise Architecture · Categorized Portals</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                Two Purpose-Built Interfaces in One Ecosystem
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
+                Experience seamless separation between customer-facing loan discovery and banking underwriter/analyst administration.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <button
+                onClick={() => onNavigate('admin')}
+                className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-bold text-xs rounded-xl transition-all flex items-center space-x-2 shadow-lg shadow-indigo-500/20 active:scale-98"
+              >
+                <span>Open Admin &amp; Analyst Desk &rarr;</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-800/80">
+            {/* Normal User Scope */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center">
+                  <User className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+                  Normal Customer &amp; Buyer Tools
+                </span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/30">
+                  Public Client
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Browse luxury, EV, SUV, and commercial fleets, run instant multi-tier EMI estimations, verify document checklists for salaried vs business owners, and submit 4-stage loan applications with real-time tracking.
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">EMI Calculator</span>
+                <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Pre-Qualification</span>
+                <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Document Checklist</span>
+                <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Loan Application</span>
+                <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Status Tracker</span>
+              </div>
+            </div>
+
+            {/* Admin / Analyst Scope */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center">
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
+                  Admin, Underwriter &amp; Analyst Portal
+                </span>
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded border border-indigo-500/30">
+                  Internal Staff
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Credit risk underwriting desk to sanction/reject applications, verify KYC &amp; salary documents, manage advisory leads CRM, dispatch test drive showroom slots, and inspect portfolio risk KPIs.
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <span className="text-[10px] bg-indigo-950/80 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/60">Underwriting Desk</span>
+                <span className="text-[10px] bg-indigo-950/80 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/60">Document Verification</span>
+                <span className="text-[10px] bg-indigo-950/80 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/60">Leads CRM</span>
+                <span className="text-[10px] bg-indigo-950/80 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/60">Portfolio Analytics</span>
+                <span className="text-[10px] bg-indigo-950/80 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/60">Antigravity Prompts</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. Vehicle Financing Categories (Comprehensive Business Scope) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div>
+            <div className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200 mb-2">
+              <Car className="w-3.5 h-3.5 text-slate-700" />
+              <span>Full Automotive Financing Spectrum</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+              What Kind of Vehicle Are You Financing?
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+              From personal daily commuters to heavy commercial haulers and high-voltage electric fleets, explore structured loan options tailored for each category.
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigate('concierge')}
+            className="flex items-center space-x-1.5 px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-xs font-medium transition-colors shadow-xs shrink-0"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>Consult a Vehicle Finance Guru</span>
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-xs space-y-2.5">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-800">
-              <Car className="w-4 h-4" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">New Car &amp; SUV Loans</h3>
-            <p className="text-xs text-slate-600 leading-normal">
-              Up to 100% on-road funding for all major automobile brands in India (Mahindra, Tata, Toyota, Hyundai, Honda, Maruti Suzuki, Skoda). Starting 8.49% p.a.
-            </p>
-            <button
-              onClick={() => onNavigate('calculator')}
-              className="text-xs font-semibold text-slate-900 hover:text-slate-700 flex items-center space-x-1 pt-1"
-            >
-              <span>Calculate New Car EMI</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-
-          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-xs space-y-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <Zap className="w-4 h-4" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">Electric Vehicle (EV) Financing</h3>
-            <p className="text-xs text-slate-600 leading-normal">
-              Preferential Green Auto Loans with special interest concessions (from 8.25% p.a.) and central/state subsidy advisory for Tata, Hyundai, BYD, and premium EVs.
-            </p>
-            <button
-              onClick={() => onNavigate('calculator')}
-              className="text-xs font-semibold text-slate-900 hover:text-slate-700 flex items-center space-x-1 pt-1"
-            >
-              <span>Explore EV Loan Terms</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-
-          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-xs space-y-2.5">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-800">
-              <RefreshCw className="w-4 h-4" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">Used &amp; Certified Pre-Owned</h3>
-            <p className="text-xs text-slate-600 leading-normal">
-              Financing for quality inspected pre-owned cars from authorized dealerships or private sellers. Valuation checks and RTO ownership transfer assistance included.
-            </p>
-            <button
-              onClick={() => onNavigate('concierge')}
-              className="text-xs font-semibold text-slate-900 hover:text-slate-700 flex items-center space-x-1 pt-1"
-            >
-              <span>Used Car Valuation &amp; Loan</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-
-          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-xs space-y-2.5">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-800">
-              <Percent className="w-4 h-4" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">Loan Balance Transfer &amp; Refinancing</h3>
-            <p className="text-xs text-slate-600 leading-normal">
-              Paying high interest on your existing vehicle loan? Transfer your auto loan balance to lower rates and reduce monthly EMIs with top-up cash availability.
-            </p>
-            <button
-              onClick={() => onNavigate('concierge')}
-              className="text-xs font-semibold text-slate-900 hover:text-slate-700 flex items-center space-x-1 pt-1"
-            >
-              <span>Request Balance Transfer Advisory</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-
-          <div className="p-5 rounded-xl bg-white border border-slate-200/90 shadow-xs space-y-2.5">
-            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-800">
-              <Truck className="w-4 h-4" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">Commercial Vehicle &amp; Fleet Finance</h3>
-            <p className="text-xs text-slate-600 leading-normal">
-              Customized credit lines for logistics operators, employee transport, cargo carriers, and luxury tour operators across India with flexible seasonal repayment options.
-            </p>
-            <button
-              onClick={() => onNavigate('concierge')}
-              className="text-xs font-semibold text-slate-900 hover:text-slate-700 flex items-center space-x-1 pt-1"
-            >
-              <span>Fleet Financing Consultation</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-
-          <div className="p-5 rounded-xl bg-slate-100 border border-slate-200/90 shadow-xs space-y-2.5 flex flex-col justify-between">
-            <div>
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Free Consultation Desk</div>
-              <h3 className="text-sm font-bold text-slate-900">Unbiased Vehicle Finance Advisory</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {/* 1. New Passenger Cars */}
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md transition-all space-y-3.5 flex flex-col justify-between group">
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+                <Car className="w-5 h-5" />
+              </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900">New Car &amp; SUV Loans</h3>
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">From 8.49%</span>
+              </div>
               <p className="text-xs text-slate-600 leading-normal">
-                Not sure whether to lease, take a 5-year loan, or transfer your existing balance? Talk to a certified CarGuru finance advisor today with zero obligations.
+                Up to 100% on-road funding for all major automotive brands across India (Mahindra, Tata, Toyota, Hyundai, Honda, Maruti Suzuki, Skoda). Includes ex-showroom, RTO road taxes, and insurance.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => onNavigate('calculator')}
+                className="text-xs font-bold text-slate-900 hover:text-emerald-700 flex items-center space-x-1 transition-colors"
+              >
+                <span>Calculate EMI</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              {onOpenChecklistModal && (
+                <button
+                  type="button"
+                  onClick={() => onOpenChecklistModal('salaried')}
+                  className="text-[11px] text-slate-500 hover:text-slate-900 underline"
+                >
+                  Required Docs
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Electric Vehicles (EV) */}
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md transition-all space-y-3.5 flex flex-col justify-between group">
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <Zap className="w-5 h-5" />
+              </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900">Electric Vehicle (EV) Financing</h3>
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Green Concession</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-normal">
+                Concessional Green Auto Loans with special interest discounts (from 8.25% p.a.) and central/state subsidy advisory for Tata EV, Hyundai IONIQ, BYD, and premium electric sedans.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => onNavigate('calculator')}
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center space-x-1 transition-colors"
+              >
+                <span>Explore Green EMI</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('concierge')}
+                className="text-[11px] text-slate-500 hover:text-slate-900 underline"
+              >
+                Subsidy Guide
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Used & Certified Pre-Owned */}
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md transition-all space-y-3.5 flex flex-col justify-between group">
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+                <RefreshCw className="w-5 h-5" />
+              </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900">Used &amp; Certified Pre-Owned</h3>
+                <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">Quick Valuation</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-normal">
+                Financing up to 90% of market value for verified pre-owned cars from authorized dealerships or private sellers. Valuation checks and RTO ownership transfer assistance included.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => onNavigate('concierge')}
+                className="text-xs font-bold text-slate-900 hover:text-emerald-700 flex items-center space-x-1 transition-colors"
+              >
+                <span>Used Car Loan Advisory</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              {onOpenChecklistModal && (
+                <button
+                  type="button"
+                  onClick={() => onOpenChecklistModal('used_car')}
+                  className="text-[11px] text-slate-500 hover:text-slate-900 underline"
+                >
+                  Used Car Docs
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 4. Loan Balance Transfer */}
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md transition-all space-y-3.5 flex flex-col justify-between group">
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+                <Percent className="w-5 h-5" />
+              </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900">Loan Balance Transfer</h3>
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Reduce EMI</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-normal">
+                Paying high interest on your existing auto loan? Transfer your loan balance to prime rates (from 8.49%) and unlock additional top-up cash with zero hassle.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => onNavigate('concierge')}
+                className="text-xs font-bold text-slate-900 hover:text-emerald-700 flex items-center space-x-1 transition-colors"
+              >
+                <span>Calculate Balance Savings</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-[11px] text-emerald-700 font-medium">Save up to ₹1.2L</span>
+            </div>
+          </div>
+
+          {/* 5. Commercial Vehicle & Fleet */}
+          <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md transition-all space-y-3.5 flex flex-col justify-between group">
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+                <Truck className="w-5 h-5" />
+              </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900">Commercial &amp; Fleet Finance</h3>
+                <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">Corporate Rates</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-normal">
+                Structured business credit lines for corporate employee fleets, tourism coaches, cargo logistics, and light commercial vehicles with seasonal repayment terms.
+              </p>
+            </div>
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => onNavigate('concierge')}
+                className="text-xs font-bold text-slate-900 hover:text-emerald-700 flex items-center space-x-1 transition-colors"
+              >
+                <span>Request Fleet Proposal</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              {onOpenChecklistModal && (
+                <button
+                  type="button"
+                  onClick={() => onOpenChecklistModal('commercial')}
+                  className="text-[11px] text-slate-500 hover:text-slate-900 underline"
+                >
+                  Fleet Docs
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 6. Unbiased Free Consultation Desk */}
+          <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md space-y-3.5 flex flex-col justify-between">
+            <div className="space-y-2.5">
+              <div className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-emerald-400 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-800/80">
+                <Sparkles className="w-3 h-3" />
+                <span>Zero Obligation Advisory</span>
+              </div>
+              <h3 className="text-base font-bold text-white">CarGuru Advisory Desk</h3>
+              <p className="text-xs text-slate-300 leading-normal">
+                Speak directly with certified automotive financial advisors. We evaluate loan tenure, bank comparison, tax write-offs, and CIBIL optimization free of cost.
               </p>
             </div>
             <button
               onClick={() => onNavigate('concierge')}
-              className="w-full py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-xs font-medium transition-colors text-center shadow-xs"
+              className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg text-xs font-bold transition-all text-center shadow-xs active:scale-98"
             >
-              Book Free Consultation
+              Book Free Consultation Call
             </button>
           </div>
         </div>
@@ -247,7 +547,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
             {featuredVehicles.map((vehicle) => (
               <div
                 key={vehicle.vehicleId}
-                className="rounded-xl overflow-hidden bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between"
+                className="rounded-2xl overflow-hidden bg-white border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
               >
                 <div>
                   <div className="relative aspect-video overflow-hidden bg-slate-100">
@@ -255,9 +555,9 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                       src={vehicle.imageUrl}
                       alt={`${vehicle.make} ${vehicle.model}`}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
                     />
-                    <div className="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur-xs text-white text-[11px] font-medium px-2 py-0.5 rounded">
+                    <div className="absolute top-2.5 left-2.5 bg-slate-900/85 backdrop-blur-xs text-white text-[11px] font-medium px-2 py-0.5 rounded shadow-xs">
                       {vehicle.category}
                     </div>
                   </div>
@@ -275,7 +575,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                     <div className="pt-3 border-t border-slate-100 flex items-baseline justify-between">
                       <div>
                         <div className="text-[11px] font-medium text-slate-500 uppercase">Ex-Showroom Price</div>
-                        <div className="text-lg font-bold text-slate-900 tabular-nums">
+                        <div className="text-lg font-bold text-slate-900 tabular-nums font-mono">
                           {formatINRLakhCrore(vehicle.baseMSRP)}
                         </div>
                       </div>
@@ -290,13 +590,13 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                 <div className="p-5 pt-0 flex gap-2">
                   <button
                     onClick={() => onSelectVehicleForFinancing(vehicle)}
-                    className="flex-1 py-2 px-3 bg-slate-900 text-white hover:bg-slate-800 font-medium text-xs rounded-lg transition-colors text-center shadow-xs"
+                    className="flex-1 py-2.5 px-3 bg-slate-900 text-white hover:bg-slate-800 font-medium text-xs rounded-lg transition-colors text-center shadow-xs"
                   >
                     Calculate EMI
                   </button>
                   <button
                     onClick={() => onOpenTestDrive(vehicle.vehicleId)}
-                    className="py-2 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium text-xs rounded-lg transition-colors"
+                    className="py-2.5 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium text-xs rounded-lg transition-colors"
                   >
                     Test Drive
                   </button>
@@ -307,9 +607,9 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
         )}
       </section>
 
-      {/* Required Loan Documents Guide (Salaried vs Self-Employed) */}
+      {/* 4. Required Loan Documents Guide (Salaried vs Self-Employed) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="p-6 sm:p-8 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+        <div className="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200/90 shadow-xs">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div>
               <div className="inline-flex items-center space-x-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 mb-2">
@@ -348,7 +648,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Salaried Card */}
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 flex flex-col justify-between">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-1.5 font-bold text-xs text-slate-900">
@@ -386,7 +686,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
             </div>
 
             {/* Self-Employed Card */}
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 flex flex-col justify-between">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-1.5 font-bold text-xs text-slate-900">
@@ -398,15 +698,15 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                 <ul className="text-xs space-y-1.5 text-slate-600 my-2">
                   <li className="flex items-start space-x-1.5">
                     <span className="text-emerald-600 font-bold shrink-0">✓</span>
-                    <span>Personal + Enterprise PAN Cards</span>
+                    <span>PAN Card &amp; Entity GST Certificate</span>
                   </li>
                   <li className="flex items-start space-x-1.5">
                     <span className="text-emerald-600 font-bold shrink-0">✓</span>
-                    <span>GST Registration &amp; 6M 3B Returns</span>
+                    <span>2 Years Audited Financials &amp; ITR</span>
                   </li>
                   <li className="flex items-start space-x-1.5">
                     <span className="text-emerald-600 font-bold shrink-0">✓</span>
-                    <span>2-3 Years ITR + Computation Sheet</span>
+                    <span>Computation of Income &amp; Balance Sheet</span>
                   </li>
                   <li className="flex items-start space-x-1.5">
                     <span className="text-emerald-600 font-bold shrink-0">✓</span>
@@ -424,7 +724,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
             </div>
 
             {/* Pre-Owned & Refinance Card */}
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 flex flex-col justify-between">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-1.5 font-bold text-xs text-slate-900">
@@ -462,7 +762,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
             </div>
 
             {/* Commercial & Fleet Card */}
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 flex flex-col justify-between">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-1.5 font-bold text-xs text-slate-900">
@@ -502,9 +802,9 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
         </div>
       </section>
 
-      {/* 4. Three-Step Financing & Advisory Flow */}
+      {/* 5. Three-Step Financing & Advisory Flow */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="p-6 sm:p-8 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+        <div className="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200/90 shadow-xs">
           <div className="max-w-xl mb-6">
             <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">How CarGuru Works</div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
@@ -513,7 +813,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <div className="text-xs font-mono font-bold text-slate-500">01 / CALCULATION</div>
               <h3 className="text-base font-semibold text-slate-900">Model EMI &amp; State Taxes</h3>
               <p className="text-xs text-slate-600 leading-normal">
@@ -521,7 +821,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
               </p>
             </div>
 
-            <div className="p-5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <div className="text-xs font-mono font-bold text-slate-500">02 / CONSULTATION</div>
               <h3 className="text-base font-semibold text-slate-900">Expert Advice &amp; Sanction</h3>
               <p className="text-xs text-slate-600 leading-normal">
@@ -529,7 +829,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
               </p>
             </div>
 
-            <div className="p-5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
+            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <div className="text-xs font-mono font-bold text-slate-500">03 / DISBURSAL</div>
               <h3 className="text-base font-semibold text-slate-900">Doorstep Document Handover</h3>
               <p className="text-xs text-slate-600 leading-normal">
