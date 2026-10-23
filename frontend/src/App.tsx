@@ -9,18 +9,29 @@ import { EnquiryForm } from './components/EnquiryForm';
 import { PreQualificationModal } from './components/PreQualificationModal';
 import { TestDriveModal } from './components/TestDriveModal';
 import { DocumentChecklist, LoanApplicantType } from './components/DocumentChecklist';
-import { VehicleSummary } from './api/client';
-import { Car, MapPin, Phone, HelpCircle, ShieldCheck, FileText } from 'lucide-react';
+import { AdminPortal } from './components/AdminPortal';
+import { AuthModal, DEMO_USERS } from './components/AuthModal';
+import { VehicleSummary, UserProfile } from './api/client';
+import { Car, MapPin, Phone, HelpCircle, ShieldCheck, FileText, LayoutDashboard } from 'lucide-react';
 
 export function App() {
   // Sync page state with window hash (supporting direct bookmarking and browser back/forward)
   const getInitialTab = (): string => {
     const hash = window.location.hash.replace('#', '').replace('/', '');
-    const validTabs = ['overview', 'fleet', 'calculator', 'documents', 'apply', 'track', 'concierge'];
+    const validTabs = ['overview', 'fleet', 'calculator', 'documents', 'apply', 'track', 'concierge', 'admin'];
     return validTabs.includes(hash) ? hash : 'overview';
   };
 
   const [activeTab, setActiveTab] = useState<string>(getInitialTab());
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    const saved = localStorage.getItem('carguru_user');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+    }
+    return DEMO_USERS[0]; // Aarav Sharma (Customer / Loan Applicant)
+  });
+
+  const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [preQualifyOpen, setPreQualifyOpen] = useState<boolean>(false);
   const [testDriveOpen, setTestDriveOpen] = useState<boolean>(false);
   const [testDriveVehicleId, setTestDriveVehicleId] = useState<string>('CG-2026-XUV700');
@@ -36,7 +47,7 @@ export function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '').replace('/', '');
-      const validTabs = ['overview', 'fleet', 'calculator', 'documents', 'apply', 'track', 'concierge'];
+      const validTabs = ['overview', 'fleet', 'calculator', 'documents', 'apply', 'track', 'concierge', 'admin'];
       if (validTabs.includes(hash)) {
         setActiveTab(hash);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -46,6 +57,15 @@ export function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  const handleSelectUser = (user: UserProfile) => {
+    setCurrentUser(user);
+    localStorage.setItem('carguru_user', JSON.stringify(user));
+    // If switching to staff, navigate to admin portal
+    if (user.role === 'underwriter' || user.role === 'analyst' || user.role === 'admin') {
+      navigateToPage('admin');
+    }
+  };
 
   const navigateToPage = (tab: string) => {
     setActiveTab(tab);
@@ -85,6 +105,8 @@ export function App() {
         activeTab={activeTab}
         setActiveTab={navigateToPage}
         onOpenTestDrive={() => handleOpenTestDrive()}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setAuthModalOpen(true)}
       />
 
       {/* Page Router — Strictly Page-Wise based on Menu */}
@@ -139,9 +161,23 @@ export function App() {
         {activeTab === 'track' && (
           <ApplicationTracker initialRef={trackedReference} />
         )}
+
+        {activeTab === 'admin' && (
+          <AdminPortal
+            currentUser={currentUser}
+            onOpenAuthModal={() => setAuthModalOpen(true)}
+            onSwitchToClientView={() => navigateToPage('overview')}
+          />
+        )}
       </main>
 
       {/* Global Modals */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        currentUser={currentUser}
+        onSelectUser={handleSelectUser}
+      />
       <PreQualificationModal
         isOpen={preQualifyOpen}
         onClose={() => setPreQualifyOpen(false)}
@@ -205,6 +241,7 @@ export function App() {
                 <li><button onClick={() => navigateToPage('concierge')} className="hover:text-white transition-colors">Balance Transfer &amp; Refinancing</button></li>
                 <li><button onClick={() => setPreQualifyOpen(true)} className="hover:text-white transition-colors">Soft-Pull CIBIL Eligibility Check</button></li>
                 <li><button onClick={() => navigateToPage('track')} className="hover:text-white transition-colors">Application &amp; Ticket Status Tracker</button></li>
+                <li className="pt-1"><button onClick={() => navigateToPage('admin')} className="text-purple-400 hover:text-purple-300 font-semibold transition-colors flex items-center space-x-1"><span>Admin &amp; Underwriter Desk</span><LayoutDashboard className="w-3 h-3 ml-1" /></button></li>
               </ul>
             </div>
 

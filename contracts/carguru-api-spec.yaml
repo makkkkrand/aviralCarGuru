@@ -100,6 +100,42 @@ paths:
                 $ref: '#/components/schemas/ApiError'
 
   /api/v1/financing/applications:
+    get:
+      tags:
+        - Financing
+      summary: List all financing applications (Underwriter and Admin Queue)
+      operationId: listFinancingApplications
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, SUBMITTED, UNDER_REVIEW, APPROVED, DOCS_REQUIRED, REJECTED]
+        - name: employmentType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Applications listed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  applications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FinancingApplicationDetail'
     post:
       tags:
         - Financing
@@ -158,6 +194,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
 
+  /api/v1/financing/applications/{applicationId}/review:
+    patch:
+      tags:
+        - Financing
+      summary: Underwriter review and loan sanction action
+      operationId: reviewFinancingApplication
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [UNDER_REVIEW, APPROVED, DOCS_REQUIRED, REJECTED]
+                approvedAmount:
+                  type: number
+                offeredApr:
+                  type: number
+                note:
+                  type: string
+                underwriterName:
+                  type: string
+      responses:
+        '200':
+          description: Application review updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  application:
+                    $ref: '#/components/schemas/FinancingApplicationDetail'
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
   /api/v1/financing/applications/{applicationId}/documents:
     post:
       tags:
@@ -190,10 +275,105 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
 
+  /api/v1/financing/applications/{applicationId}/documents/{documentId}:
+    patch:
+      tags:
+        - Financing
+      summary: Verify or flag an uploaded document
+      operationId: verifyApplicationDocument
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [VERIFIED, REJECTED, UPLOADED]
+      responses:
+        '200':
+          description: Document verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  document:
+                    $ref: '#/components/schemas/ApplicationDocument'
+
+  /api/v1/analytics/portfolio-summary:
+    get:
+      tags:
+        - Financing
+      summary: Retrieve portfolio credit risk and loan performance metrics
+      operationId: getPortfolioSummary
+      responses:
+        '200':
+          description: Portfolio summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kpis:
+                    type: object
+                  cibilDistribution:
+                    type: array
+                    items:
+                      type: object
+                  employmentDistribution:
+                    type: array
+                    items:
+                      type: object
+
   # =========================================================================
   # ENQUIRY ENDPOINTS
   # =========================================================================
   /api/v1/enquiries:
+    get:
+      tags:
+        - Enquiries
+      summary: List all customer enquiries (Admin Lead Management CRM)
+      operationId: listEnquiries
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Enquiries retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  enquiries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EnquiryDetail'
     post:
       tags:
         - Enquiries
@@ -244,6 +424,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+    patch:
+      tags:
+        - Enquiries
+      summary: Update enquiry status and assign relationship advisor
+      operationId: updateEnquiry
+      parameters:
+        - name: enquiryId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                assignedAdvisor:
+                  type: string
+                resolutionNote:
+                  type: string
+      responses:
+        '200':
+          description: Enquiry updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  enquiry:
+                    $ref: '#/components/schemas/EnquiryDetail'
 
   /api/v1/enquiries/categories:
     get:
@@ -260,6 +476,25 @@ paths:
                 $ref: '#/components/schemas/EnquiryCategoriesResponse'
 
   /api/v1/enquiries/test-drive:
+    get:
+      tags:
+        - Enquiries
+      summary: List all showroom test-drive appointments
+      operationId: listTestDrives
+      responses:
+        '200':
+          description: Test drives retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  bookings:
+                    type: array
+                    items:
+                      type: object
     post:
       tags:
         - Enquiries
@@ -273,13 +508,57 @@ paths:
               $ref: '#/components/schemas/TestDriveBookingRequest'
       responses:
         '201':
-          description: Test drive scheduled
+          description: Test-drive confirmed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TestDriveBookingResponse'
         '400':
-          description: Invalid booking parameters
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/v1/enquiries/test-drive/{bookingId}:
+    patch:
+      tags:
+        - Enquiries
+      summary: Update test drive status or reschedule appointment
+      operationId: updateTestDrive
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                dealershipLocation:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Test drive updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  booking:
+                    type: object
+        '404':
+          description: Test drive not found
           content:
             application/json:
               schema:
