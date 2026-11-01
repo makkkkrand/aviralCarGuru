@@ -28,5 +28,5 @@ springdoc:
 logging:
   level:
     root: INFO
-    com.velora.carguru: DEBUG
+    com.aviral.carguru: DEBUG
     org.springframework.data.mongodb.core.MongoTemplate: DEBUG

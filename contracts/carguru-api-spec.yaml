@@ -104,14 +104,14 @@ paths:
       tags:
         - Financing
       summary: List all financing applications (Underwriter and Admin Queue)
-      operationId: listFinancingApplications
+      operationId: listApplications
       parameters:
         - name: status
           in: query
           required: false
           schema:
             type: string
-            enum: [ALL, SUBMITTED, UNDER_REVIEW, APPROVED, DOCS_REQUIRED, REJECTED]
+            enum: [SUBMITTED, UNDER_REVIEW, APPROVED, DOCS_REQUIRED, REJECTED]
         - name: employmentType
           in: query
           required: false
@@ -128,14 +128,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  total:
-                    type: integer
-                  applications:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/FinancingApplicationDetail'
+                $ref: '#/components/schemas/FinancingApplicationsListResponse'
     post:
       tags:
         - Financing
@@ -199,7 +192,7 @@ paths:
       tags:
         - Financing
       summary: Underwriter review and loan sanction action
-      operationId: reviewFinancingApplication
+      operationId: reviewApplication
       parameters:
         - name: applicationId
           in: path
@@ -211,31 +204,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  enum: [UNDER_REVIEW, APPROVED, DOCS_REQUIRED, REJECTED]
-                approvedAmount:
-                  type: number
-                offeredApr:
-                  type: number
-                note:
-                  type: string
-                underwriterName:
-                  type: string
+              $ref: '#/components/schemas/UnderwritingReviewRequest'
       responses:
         '200':
           description: Application review updated successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  application:
-                    $ref: '#/components/schemas/FinancingApplicationDetail'
+                $ref: '#/components/schemas/FinancingApplicationDetail'
         '404':
           description: Application not found
           content:
@@ -280,7 +256,7 @@ paths:
       tags:
         - Financing
       summary: Verify or flag an uploaded document
-      operationId: verifyApplicationDocument
+      operationId: verifyDocument
       parameters:
         - name: applicationId
           in: path
@@ -297,23 +273,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  enum: [VERIFIED, REJECTED, UPLOADED]
+              $ref: '#/components/schemas/DocumentVerificationRequest'
       responses:
         '200':
           description: Document verified
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  document:
-                    $ref: '#/components/schemas/ApplicationDocument'
+                $ref: '#/components/schemas/ApplicationDocument'
 
   /api/v1/analytics/portfolio-summary:
     get:
@@ -327,18 +294,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  kpis:
-                    type: object
-                  cibilDistribution:
-                    type: array
-                    items:
-                      type: object
-                  employmentDistribution:
-                    type: array
-                    items:
-                      type: object
+                $ref: '#/components/schemas/PortfolioSummaryResponse'
 
   # =========================================================================
   # ENQUIRY ENDPOINTS
@@ -366,14 +322,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  total:
-                    type: integer
-                  enquiries:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/EnquiryDetail'
+                $ref: '#/components/schemas/EnquiriesListResponse'
     post:
       tags:
         - Enquiries
@@ -440,26 +389,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                assignedAdvisor:
-                  type: string
-                resolutionNote:
-                  type: string
+              $ref: '#/components/schemas/UpdateEnquiryRequest'
       responses:
         '200':
           description: Enquiry updated
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  enquiry:
-                    $ref: '#/components/schemas/EnquiryDetail'
+                $ref: '#/components/schemas/EnquiryDetail'
 
   /api/v1/enquiries/categories:
     get:
@@ -487,14 +424,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  total:
-                    type: integer
-                  bookings:
-                    type: array
-                    items:
-                      type: object
+                type: array
+                items:
+                  $ref: '#/components/schemas/TestDriveBookingDetail'
     post:
       tags:
         - Enquiries
@@ -537,26 +469,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                dealershipLocation:
-                  type: string
-                notes:
-                  type: string
+              $ref: '#/components/schemas/UpdateTestDriveRequest'
       responses:
         '200':
           description: Test drive updated
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  booking:
-                    type: object
+                $ref: '#/components/schemas/TestDriveBookingDetail'
         '404':
           description: Test drive not found
           content:
@@ -1106,6 +1026,14 @@ components:
           type: number
           format: double
           example: 73000.00
+        approvedAmount:
+          type: number
+          format: double
+          example: 70000.00
+        offeredApr:
+          type: number
+          format: double
+          example: 4.50
 
     ApplicationConsents:
       type: object
@@ -1141,7 +1069,7 @@ components:
           example: "VEL-APP-2026-0941"
         status:
           type: string
-          enum: [SUBMITTED, UNDER_REVIEW, APPROVED, CONDITIONAL_APPROVAL, NEEDS_DOCUMENTS, REJECTED]
+          enum: [SUBMITTED, UNDER_REVIEW, APPROVED, CONDITIONAL_APPROVAL, NEEDS_DOCUMENTS, DOCS_REQUIRED, REJECTED]
           example: "SUBMITTED"
         submittedAt:
           type: string
@@ -1170,10 +1098,16 @@ components:
           type: string
         status:
           type: string
-          enum: [SUBMITTED, UNDER_REVIEW, APPROVED, CONDITIONAL_APPROVAL, NEEDS_DOCUMENTS, REJECTED]
+          enum: [SUBMITTED, UNDER_REVIEW, APPROVED, CONDITIONAL_APPROVAL, NEEDS_DOCUMENTS, DOCS_REQUIRED, REJECTED]
         submittedAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        cibilScore:
+          type: integer
+          example: 750
         applicant:
           $ref: '#/components/schemas/ApplicantPersonalDetails'
         employment:
@@ -1229,6 +1163,9 @@ components:
         note:
           type: string
           example: "Application received and queued for review"
+        authorName:
+          type: string
+          example: "System"
 
     DocumentSubmissionRequest:
       type: object
@@ -1404,6 +1341,12 @@ components:
         updatedAt:
           type: string
           format: date-time
+        assignedAdvisor:
+          type: string
+        resolutionNotes:
+          type: array
+          items:
+            type: string
 
     EnquiryCategoriesResponse:
       type: object
@@ -1477,7 +1420,7 @@ components:
           example: "VEL-DRIVE-7721"
         status:
           type: string
-          enum: [CONFIRMED, RESCHEDULED, CANCELLED]
+          enum: [CONFIRMED, COMPLETED, RESCHEDULED, CANCELLED]
           example: "CONFIRMED"
         scheduledDateTime:
           type: string
@@ -1568,3 +1511,299 @@ components:
           items:
             type: string
           example: ["$2,500 Velora Luxury Loyalty Bonus", "0.9% APR for 36 months on select trims"]
+
+    FinancingApplicationsListResponse:
+      type: object
+      required:
+        - applications
+        - totalCount
+      properties:
+        totalCount:
+          type: integer
+          example: 42
+        total:
+          type: integer
+          example: 42
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinancingApplicationDetail'
+
+    UnderwritingReviewRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [SUBMITTED, UNDER_REVIEW, APPROVED, DOCS_REQUIRED, REJECTED]
+          example: "APPROVED"
+        approvedAmount:
+          type: number
+          example: 7500000.00
+        offeredApr:
+          type: number
+          example: 8.45
+        note:
+          type: string
+          example: "Approved after CIBIL bureau verification and payslip validation."
+        underwriterName:
+          type: string
+          example: "Priya Sundaram"
+
+    DocumentVerificationRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [VERIFIED, REJECTED]
+          example: "VERIFIED"
+        note:
+          type: string
+          example: "Verified against Aadhaar / PAN database."
+
+    ApplicationDocument:
+      type: object
+      required:
+        - documentId
+        - documentType
+        - status
+      properties:
+        documentId:
+          type: string
+          example: "DOC-89A12B"
+        documentType:
+          type: string
+          enum: [GOVERNMENT_ID, PAY_SLIP, BANK_STATEMENT, PROOF_OF_RESIDENCE]
+          example: "GOVERNMENT_ID"
+        fileName:
+          type: string
+          example: "pan_card_front.pdf"
+        status:
+          type: string
+          enum: [PENDING, UPLOADED, VERIFIED, REJECTED]
+          example: "VERIFIED"
+        uploadedAt:
+          type: string
+          format: date-time
+        verifiedAt:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          example: "Document verified successfully"
+
+    EnquiriesListResponse:
+      type: object
+      required:
+        - enquiries
+        - totalCount
+      properties:
+        totalCount:
+          type: integer
+          example: 15
+        total:
+          type: integer
+          example: 15
+        enquiries:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnquiryDetail'
+
+    UpdateEnquiryRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "CONTACTED"
+        assignedAdvisor:
+          type: string
+          example: "Rohan Mehta"
+        resolutionNote:
+          type: string
+          example: "Customer interested in financing options; scheduled showroom visit."
+
+    TestDriveBookingDetail:
+      type: object
+      required:
+        - bookingId
+        - confirmationCode
+        - status
+        - vehicleId
+        - preferredDate
+      properties:
+        bookingId:
+          type: string
+          example: "td-884920"
+        confirmationCode:
+          type: string
+          example: "VEL-DRIVE-7721"
+        status:
+          type: string
+          enum: [CONFIRMED, COMPLETED, RESCHEDULED, CANCELLED]
+          example: "CONFIRMED"
+        customer:
+          $ref: '#/components/schemas/CustomerContact'
+        vehicleId:
+          type: string
+          example: "VEL-2026-GT"
+        dealershipLocation:
+          type: string
+          example: "Velora Flagship Experience Center - Mumbai BKC"
+        preferredDate:
+          type: string
+          format: date
+          example: "2026-11-10"
+        preferredTimeSlot:
+          type: string
+          example: "AFTERNOON"
+        driverLicenseValid:
+          type: boolean
+          example: true
+        notes:
+          type: string
+          example: "Wants to test track handling mode."
+        scheduledDateTime:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateTestDriveRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [CONFIRMED, COMPLETED, RESCHEDULED, CANCELLED]
+          example: "COMPLETED"
+        dealershipLocation:
+          type: string
+          example: "Velora Flagship Experience Center - Bangalore"
+        notes:
+          type: string
+          example: "Customer completed 25-minute test drive on highway."
+
+    PortfolioSummaryResponse:
+      type: object
+      required:
+        - kpis
+        - cibilDistribution
+        - employmentDistribution
+        - monthlyVolumeHistory
+      properties:
+        kpis:
+          $ref: '#/components/schemas/PortfolioKpis'
+        cibilDistribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/CibilDistributionItem'
+        employmentDistribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmploymentDistributionItem'
+        monthlyVolumeHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyVolumeHistoryItem'
+
+    PortfolioKpis:
+      type: object
+      required:
+        - totalRequestedVolume
+        - totalApprovedVolume
+        - approvalRate
+        - avgTicketSize
+      properties:
+        totalRequestedVolume:
+          type: number
+          example: 35000000.00
+        totalApprovedVolume:
+          type: number
+          example: 28500000.00
+        approvalRate:
+          type: number
+          example: 81.4
+        avgTicketSize:
+          type: number
+          example: 5200000.00
+        totalApplications:
+          type: integer
+          example: 120
+        activeEnquiries:
+          type: integer
+          example: 45
+        scheduledTestDrives:
+          type: integer
+          example: 22
+        pendingReviewsCount:
+          type: integer
+          example: 18
+        underReviewCount:
+          type: integer
+          example: 12
+        docsRequiredCount:
+          type: integer
+          example: 6
+        approvedCount:
+          type: integer
+          example: 98
+        rejectedCount:
+          type: integer
+          example: 4
+
+    CibilDistributionItem:
+      type: object
+      required:
+        - tier
+        - count
+      properties:
+        tier:
+          type: string
+          example: "Prime+ (775+)"
+        count:
+          type: integer
+          example: 48
+        defaultRateEst:
+          type: string
+          example: "0.4%"
+        percentage:
+          type: number
+          example: 40.0
+
+    EmploymentDistributionItem:
+      type: object
+      required:
+        - name
+        - count
+      properties:
+        name:
+          type: string
+          example: "FULL_TIME"
+        count:
+          type: integer
+          example: 72
+        percentage:
+          type: number
+          example: 60.0
+
+    MonthlyVolumeHistoryItem:
+      type: object
+      required:
+        - month
+        - volume
+      properties:
+        month:
+          type: string
+          example: "Oct 2026"
+        volume:
+          type: number
+          example: 12500000.00
+        volumeCr:
+          type: number
+          example: 1.25
+        approvals:
+          type: integer
+          example: 14
