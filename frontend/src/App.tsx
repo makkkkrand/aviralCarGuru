@@ -12,7 +12,7 @@ import { DocumentChecklist, LoanApplicantType } from './components/DocumentCheck
 import { AdminPortal } from './components/AdminPortal';
 import { AuthModal, DEMO_USERS } from './components/AuthModal';
 import { VehicleSummary, UserProfile } from './api/client';
-import { Car, MapPin, Phone, HelpCircle, ShieldCheck, FileText, LayoutDashboard } from 'lucide-react';
+import { Car, MapPin, Phone, HelpCircle, ShieldCheck, ShieldAlert, FileText, LayoutDashboard } from 'lucide-react';
 
 export function App() {
   // Sync page state with window hash (supporting direct bookmarking and browser back/forward)
@@ -30,6 +30,8 @@ export function App() {
     }
     return DEMO_USERS[0]; // Aarav Sharma (Customer / Loan Applicant)
   });
+
+  const isStaffRole = currentUser.role === 'admin' || currentUser.role === 'underwriter' || currentUser.role === 'analyst';
 
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [preQualifyOpen, setPreQualifyOpen] = useState<boolean>(false);
@@ -163,11 +165,44 @@ export function App() {
         )}
 
         {activeTab === 'admin' && (
-          <AdminPortal
-            currentUser={currentUser}
-            onOpenAuthModal={() => setAuthModalOpen(true)}
-            onSwitchToClientView={() => navigateToPage('overview')}
-          />
+          isStaffRole ? (
+            <AdminPortal
+              currentUser={currentUser}
+              onOpenAuthModal={() => setAuthModalOpen(true)}
+              onSwitchToClientView={() => navigateToPage('overview')}
+            />
+          ) : (
+            <div className="pt-24 pb-20 max-w-lg mx-auto px-4 text-center">
+              <div className="bg-white rounded-2xl p-8 border border-slate-200/90 shadow-sm space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-700">
+                  <ShieldAlert className="w-7 h-7" />
+                </div>
+                <div className="space-y-1.5">
+                  <h2 className="text-xl font-bold text-slate-900">Staff Authorization Required</h2>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    The Underwriting &amp; Operations Desk is restricted to authenticated internal team members (Admins, Underwriters, and Credit Analysts).
+                  </p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] text-slate-600">
+                  Current Session: <strong className="text-slate-900">{currentUser.name}</strong> ({currentUser.role.toUpperCase()})
+                </div>
+                <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                  <button
+                    onClick={() => setAuthModalOpen(true)}
+                    className="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl transition-colors shadow-xs"
+                  >
+                    Authenticate as Staff
+                  </button>
+                  <button
+                    onClick={() => navigateToPage('overview')}
+                    className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors"
+                  >
+                    Return to Public Portal
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
         )}
       </main>
 
@@ -241,7 +276,9 @@ export function App() {
                 <li><button onClick={() => navigateToPage('concierge')} className="hover:text-white transition-colors">Balance Transfer &amp; Refinancing</button></li>
                 <li><button onClick={() => setPreQualifyOpen(true)} className="hover:text-white transition-colors">Soft-Pull CIBIL Eligibility Check</button></li>
                 <li><button onClick={() => navigateToPage('track')} className="hover:text-white transition-colors">Application &amp; Ticket Status Tracker</button></li>
-                <li className="pt-1"><button onClick={() => navigateToPage('admin')} className="text-purple-400 hover:text-purple-300 font-semibold transition-colors flex items-center space-x-1"><span>Admin &amp; Underwriter Desk</span><LayoutDashboard className="w-3 h-3 ml-1" /></button></li>
+                {isStaffRole && (
+                  <li className="pt-1"><button onClick={() => navigateToPage('admin')} className="text-purple-400 hover:text-purple-300 font-semibold transition-colors flex items-center space-x-1"><span>Admin &amp; Underwriter Desk</span><LayoutDashboard className="w-3 h-3 ml-1" /></button></li>
+                )}
               </ul>
             </div>
 

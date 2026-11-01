@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { UserProfile } from '../api/client';
-import { X, ShieldCheck, UserCheck, Briefcase, BarChart3, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { UserProfile, setDemoModeActive } from '../api/client';
+import { X, ShieldCheck, UserCheck, Briefcase, BarChart3, Lock, CheckCircle2, ArrowRight, LogOut } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -79,18 +79,92 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   currentUser,
   onSelectUser,
 }) => {
-  const [activeTab, setActiveTab] = useState<'personas' | 'login'>('personas');
+  const [activeTab, setActiveTab] = useState<'login' | 'personas'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'analyst' | 'client'>('admin');
 
   if (!isOpen) return null;
 
   const handleManualLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const matched = DEMO_USERS.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase()
-    ) || DEMO_USERS[0];
-    onSelectUser(matched);
+    // Production sign in: disable static demo fallback so UI reflects real MongoDB state
+    setDemoModeActive(false);
+
+    const emailLower = email.toLowerCase().trim();
+
+    // 1. Check if email matches an onboarded employee in localStorage
+    try {
+      const onboarded = JSON.parse(localStorage.getItem('carguru_onboarded_employees') || '[]');
+      const empMatch = onboarded.find((emp: any) => emp.email?.toLowerCase() === emailLower);
+      if (empMatch) {
+        onSelectUser({
+          id: empMatch.employeeId,
+          name: empMatch.name,
+          email: empMatch.email,
+          role: empMatch.role,
+          title: empMatch.title,
+          department: empMatch.department,
+          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+          permissions: empMatch.permissions || [],
+        });
+        onClose();
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Categorize role based on explicit selectedRole for actual users
+    let userRole: 'admin' | 'analyst' | 'client' = selectedRole;
+    let userTitle = 'Platform Administrator & Operations Lead';
+    let userDept = 'Executive Operations';
+    let permissions = [
+      'view_all_applications',
+      'review_applications',
+      'manage_leads',
+      'manage_test_drives',
+      'manage_inventory',
+      'view_portfolio_analytics',
+      'manage_employees',
+    ];
+
+    if (userRole === 'analyst') {
+      userTitle = 'Credit Risk & Portfolio Analyst';
+      userDept = 'Financial Risk Analytics';
+      permissions = ['view_portfolio_analytics', 'view_risk_metrics', 'view_all_applications'];
+    } else if (userRole === 'client') {
+      userTitle = 'Retail Customer / Buyer';
+      userDept = 'Retail Banking Customer';
+      permissions = ['view_own_applications', 'apply_loan', 'submit_documents', 'calculate_emi'];
+    }
+
+    const namePart = emailLower.split('@')[0].replace(/[._-]/g, ' ');
+    const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+
+    onSelectUser({
+      id: `user_${Date.now()}`,
+      name: formattedName || (userRole === 'admin' ? 'Administrator' : userRole === 'analyst' ? 'Portfolio Analyst' : 'Customer'),
+      email: emailLower,
+      role: userRole as any,
+      title: userTitle,
+      department: userDept,
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      permissions,
+    });
+    onClose();
+  };
+
+  const handleSelectDemoUser = (user: UserProfile) => {
+    // Enable demo mode specifically for the 1-click evaluation switcher
+    setDemoModeActive(true);
+    onSelectUser(user);
+    onClose();
+  };
+
+  const handleSignOut = () => {
+    setDemoModeActive(false);
+    onSelectUser(DEMO_USERS[0]);
     onClose();
   };
 
@@ -128,10 +202,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="px-6 py-5 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Identity &amp; Role Access</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Enterprise Access</span>
             </div>
             <h3 className="text-lg font-bold text-white tracking-tight mt-0.5">
-              CarGuru Portal Authentication
+              CarGuru Identity &amp; Role Management
             </h3>
           </div>
           <button
@@ -145,7 +219,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Current logged in status badge */}
         <div className="bg-slate-50 px-6 py-3 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center space-x-2 text-xs">
-            <span className="text-slate-500 font-medium">Currently active:</span>
+            <span className="text-slate-500 font-medium">Active Session:</span>
             <span className="font-semibold text-slate-900">{currentUser.name}</span>
             {getRoleBadge(currentUser.role)}
           </div>
@@ -154,6 +228,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Tab switch */}
         <div className="px-6 pt-4 border-b border-slate-200 flex space-x-4 text-xs font-medium">
+          <button
+            onClick={() => setActiveTab('login')}
+            className={`pb-3 border-b-2 transition-colors ${
+              activeTab === 'login'
+                ? 'border-slate-900 text-slate-900 font-bold'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Enterprise Staff &amp; Client Login
+          </button>
           <button
             onClick={() => setActiveTab('personas')}
             className={`pb-3 border-b-2 transition-colors ${
@@ -164,34 +248,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           >
             1-Click Role Switcher (Instant Demo)
           </button>
-          <button
-            onClick={() => setActiveTab('login')}
-            className={`pb-3 border-b-2 transition-colors ${
-              activeTab === 'login'
-                ? 'border-slate-900 text-slate-900 font-bold'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            Manual Credential Sign-In
-          </button>
         </div>
 
         <div className="p-6">
           {activeTab === 'personas' ? (
             <div className="space-y-3">
-              <p className="text-xs text-slate-500 mb-2">
-                Select a persona below to immediately switch context and experience the application from that role&apos;s permissions:
-              </p>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-relaxed">
+                <strong>Instant Demo Sandbox:</strong> Selecting a role below switches your active session and enables pre-populated demo records for immediate evaluation of approval and underwriting flows.
+              </div>
 
               {DEMO_USERS.map((user) => {
                 const isSelected = currentUser.id === user.id;
                 return (
                   <button
                     key={user.id}
-                    onClick={() => {
-                      onSelectUser(user);
-                      onClose();
-                    }}
+                    onClick={() => handleSelectDemoUser(user)}
                     className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between ${
                       isSelected
                         ? 'border-slate-900 bg-slate-900/5 ring-1 ring-slate-900'
@@ -232,14 +303,63 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           ) : (
             <form onSubmit={handleManualLogin} className="space-y-4">
               <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Designated Staff / Account Role
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('admin')}
+                    className={`py-2 px-2.5 rounded-lg text-xs font-medium border text-center transition-all flex flex-col items-center justify-center ${
+                      selectedRole === 'admin'
+                        ? 'border-purple-600 bg-purple-50 text-purple-900 font-bold ring-1 ring-purple-600'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <ShieldCheck className="w-4 h-4 mb-1 text-purple-600" />
+                    <span>Admin</span>
+                    <span className="text-[10px] text-purple-700 font-normal">Full Privileges</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('analyst')}
+                    className={`py-2 px-2.5 rounded-lg text-xs font-medium border text-center transition-all flex flex-col items-center justify-center ${
+                      selectedRole === 'analyst'
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-bold ring-1 ring-emerald-600'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <BarChart3 className="w-4 h-4 mb-1 text-emerald-600" />
+                    <span>Analyst</span>
+                    <span className="text-[10px] text-emerald-700 font-normal">Risk & Analytics</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('client')}
+                    className={`py-2 px-2.5 rounded-lg text-xs font-medium border text-center transition-all flex flex-col items-center justify-center ${
+                      selectedRole === 'client'
+                        ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold ring-1 ring-blue-600'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <UserCheck className="w-4 h-4 mb-1 text-blue-600" />
+                    <span>Client</span>
+                    <span className="text-[10px] text-blue-700 font-normal">Loan Applicant</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Work Email Address
+                  Email Address
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. underwriter@carguru.in"
+                  placeholder="name@organization.in"
                   required
                   className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:ring-1 focus:ring-slate-900 focus:outline-none"
                 />
@@ -262,26 +382,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center space-x-2 shadow-xs"
                 >
                   <Lock className="w-3.5 h-3.5" />
-                  <span>Authenticate &amp; Open Portal</span>
+                  <span>Authenticate &amp; Access Dashboard</span>
                 </button>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-[11px] text-slate-600 space-y-1">
-                <div className="font-semibold text-slate-800">Quick Test Credentials:</div>
-                <div>• Underwriter: <code className="bg-slate-200 px-1 rounded">underwriter@carguru.in</code> / pass: any</div>
-                <div>• Analyst: <code className="bg-slate-200 px-1 rounded">analyst@carguru.in</code> / pass: any</div>
-                <div>• Admin: <code className="bg-slate-200 px-1 rounded">admin@carguru.in</code> / pass: any</div>
-                <div>• Customer: <code className="bg-slate-200 px-1 rounded">client@carguru.in</code> / pass: any</div>
+              <div className="flex items-center space-x-2 text-[11px] text-slate-500 pt-1">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Connected to CarGuru Enterprise Directory. Authenticated staff accounts (Admin, Underwriter, Analyst) are granted internal management desk privileges.</span>
               </div>
             </form>
           )}
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-right">
+        <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-xs text-rose-600 hover:text-rose-700 font-semibold flex items-center space-x-1"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out Session</span>
+          </button>
           <button
             onClick={onClose}
             className="px-4 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"

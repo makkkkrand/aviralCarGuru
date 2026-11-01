@@ -6,6 +6,7 @@ import {
   PortfolioSummary,
   UserProfile,
   VehicleSummary,
+  BackendStatus,
 } from '../api/client';
 import {
   ShieldCheck,
@@ -34,6 +35,19 @@ import {
   BadgeAlert,
   ArrowUpRight,
   Sliders,
+  Server,
+  Database,
+  Activity,
+  Terminal,
+  Cpu,
+  Zap,
+  Settings,
+  Link as LinkIcon,
+  Globe,
+  RotateCcw,
+  Lock,
+  ShieldAlert,
+  Info,
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -48,7 +62,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onSwitchToClientView,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'applications' | 'leads' | 'test_drives' | 'analytics' | 'inventory' | 'api_spec'
+    'applications' | 'leads' | 'test_drives' | 'analytics' | 'inventory'
   >(currentUser.role === 'analyst' ? 'analytics' : 'applications');
 
   // Applications State
@@ -92,9 +106,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     imageUrl: '',
   });
 
-  // Copy Feedback
-  const [copiedSpec, setCopiedSpec] = useState(false);
-  const [copiedPrompt, setCopiedPrompt] = useState(false);
+  // Backend Integration & Gateway State
+  const [backendStatus, setBackendStatus] = useState<BackendStatus | null>(null);
+  const [isPingingBackend, setIsPingingBackend] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [customBackendUrl, setCustomBackendUrl] = useState(() => apiClient.getBaseUrl());
+  const [testingEndpoint, setTestingEndpoint] = useState(false);
+  const [testEndpointResult, setTestEndpointResult] = useState<{
+    success: boolean;
+    message: string;
+    latencyMs?: number;
+    isMixedContent?: boolean;
+    solutionPresets?: any;
+  } | null>(null);
+  const [endpointSavedNotice, setEndpointSavedNotice] = useState(false);
+  const [copiedTerminalCommand, setCopiedTerminalCommand] = useState(false);
+  const [copiedTunnelCommand, setCopiedTunnelCommand] = useState(false);
+  const [copiedCloudflareCommand, setCopiedCloudflareCommand] = useState(false);
+  const [activeTunnelTab, setActiveTunnelTab] = useState<'tunnel' | 'chrome' | 'local'>('tunnel');
 
   // Initial load
   useEffect(() => {
@@ -103,6 +132,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const loadAllData = async () => {
     setAppsLoading(true);
+    // Asynchronously probe backend connection status
+    apiClient.checkBackendStatus().then(setBackendStatus).catch(() => {});
+
     try {
       const [appsRes, enqsRes, drivesRes, statsRes, fleetRes] = await Promise.allSettled([
         apiClient.listApplications({ status: statusFilter, employmentType: empFilter, search: searchQuery }),
@@ -122,6 +154,72 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } finally {
       setAppsLoading(false);
     }
+  };
+
+  const handlePingBackend = async () => {
+    setIsPingingBackend(true);
+    try {
+      const status = await apiClient.checkBackendStatus();
+      setBackendStatus(status);
+    } catch (e) {
+      console.warn('Backend ping failed:', e);
+    } finally {
+      setIsPingingBackend(false);
+    }
+  };
+
+  const handleTestEndpoint = async (urlToTest: string) => {
+    setTestingEndpoint(true);
+    setTestEndpointResult(null);
+    try {
+      const res = await apiClient.checkBackendStatus(urlToTest);
+      if (res.connected) {
+        setTestEndpointResult({
+          success: true,
+          message: `Successfully connected to Spring Boot 3 (${res.engine})!`,
+          latencyMs: res.latencyMs,
+        });
+      } else {
+        setTestEndpointResult({
+          success: false,
+          message: res.error || 'Connection failed. Verify service is running.',
+          isMixedContent: res.isMixedContentBlocked,
+          solutionPresets: res.solutionPresets,
+        });
+      }
+    } catch (e: any) {
+      setTestEndpointResult({
+        success: false,
+        message: e.message || 'Network error connecting to endpoint',
+      });
+    } finally {
+      setTestingEndpoint(false);
+    }
+  };
+
+  const handleSaveEndpoint = async (urlToSave: string) => {
+    const updated = apiClient.setBaseUrl(urlToSave);
+    setCustomBackendUrl(updated);
+    setEndpointSavedNotice(true);
+    setTimeout(() => {
+      setEndpointSavedNotice(false);
+      setShowConfigModal(false);
+    }, 1200);
+    await handlePingBackend();
+    loadAllData();
+  };
+
+  const handleResetEndpoint = async () => {
+    const updated = apiClient.resetBaseUrl();
+    setCustomBackendUrl(updated);
+    setTestEndpointResult(null);
+    setEndpointSavedNotice(true);
+    setTimeout(() => {
+      setEndpointSavedNotice(false);
+      setShowConfigModal(false);
+    }, 1200);
+    await handlePingBackend();
+    loadAllData();
   };
 
   const handleFilterApplications = async () => {
@@ -278,136 +376,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // OpenAPI Specification for copy
-  const openApiSpec = {
-    openapi: '3.0.3',
-    info: {
-      title: 'CarGuru India - Vehicle Financing & Advisory API',
-      version: '1.2.0',
-      description:
-        'Production REST API catering to both public clients (car loan applications, EMI calculators, pre-qualifications) and internal bank/underwriting administrators (credit assessment, loan approvals, portfolio risk analytics, and lead CRM).',
-    },
-    servers: [{ url: 'http://localhost:3000/api/v1', description: 'Local CarGuru API Server' }],
-    paths: {
-      '/catalog/vehicles/lookup': { get: { summary: 'Search vehicle fleet catalog with live prices' } },
-      '/catalog/vehicles/{vehicleId}/finance-profile': { get: { summary: 'Get financing parameters & promotional APR' } },
-      '/financing/calculator': { post: { summary: 'Dynamic loan amortization & EMI calculation' } },
-      '/financing/pre-qualification': { post: { summary: 'Soft-pull CIBIL eligibility check' } },
-      '/financing/applications': {
-        get: { summary: '[Admin/Analyst] List all loan applications with status/employment filters' },
-        post: { summary: '[Public] Submit new vehicle financing application' },
-      },
-      '/financing/applications/{applicationId}': { get: { summary: 'Retrieve full application dossier' } },
-      '/financing/applications/{applicationId}/review': { patch: { summary: '[Underwriter] Approve/Reject loan, set approved amount & APR' } },
-      '/financing/applications/{applicationId}/documents': { post: { summary: '[Applicant] Upload KYC/salary documents' } },
-      '/financing/applications/{applicationId}/documents/{documentId}': { patch: { summary: '[Underwriter] Verify or reject uploaded documents' } },
-      '/enquiries': {
-        get: { summary: '[Admin] List customer consultation & finance advisory leads' },
-        post: { summary: '[Public] Submit consultation enquiry' },
-      },
-      '/enquiries/{enquiryId}': {
-        get: { summary: 'Get enquiry status & notes' },
-        patch: { summary: '[Admin] Update lead status & assign relationship advisor' },
-      },
-      '/enquiries/test-drive': {
-        get: { summary: '[Admin] List scheduled test drives across dealerships' },
-        post: { summary: '[Public] Book vehicle test drive' },
-      },
-      '/enquiries/test-drive/{bookingId}': { patch: { summary: '[Admin] Confirm or reschedule test drive slot' } },
-      '/analytics/portfolio-summary': { get: { summary: '[Analyst] Aggregated lending portfolio KPIs & credit risk metrics' } },
-      '/auth/login': { post: { summary: 'Role-based system authentication' } },
-    },
-  };
-
-  const antigravityPrompt = `# CarGuru India - Vehicle Financing & Underwriting Backend Service Implementation Prompt
-# Architecture: Java 21 | Spring Boot 3.3.4 | Spring Data MongoDB | OpenAPI Generator (Spring MVC)
-
-You are a Senior Principal Java Backend Architect working on the "CarGuru India" (Velora CarGuru) platform.
-The backend microservice is configured in \`backend/pom.xml\` with:
-- Java 21
-- Spring Boot 3.3.4 (\`spring-boot-starter-web\`, \`spring-boot-starter-validation\`, \`spring-boot-starter-actuator\`)
-- Spring Data MongoDB (\`spring-boot-starter-data-mongodb\`)
-- OpenAPI Generator Maven Plugin 7.8.0 (\`contracts/carguru-api-spec.yaml\` -> \`com.velora.carguru.api\` interfaces & \`com.velora.carguru.model\` DTOs)
-- SpringDoc OpenAPI Starter WebMVC UI 2.6.0
-- Base package: \`com.velora.carguru\`
-
-### Task: Implement Missing APIs for Admin, Underwriting Desk & Credit Risk Analytics
-
-The public customer APIs (Loan Calculator, Pre-Qualification, 4-stage Application Submission, Document Upload, Enquiry Creation, Test Drive Booking) are already generated. You need to integrate the following missing administrative and analytical capabilities:
-
-#### 1. OpenAPI Specification Additions (\`contracts/carguru-api-spec.yaml\`)
-Add these missing paths and schemas:
-1. \`GET /api/v1/financing/applications\`:
-   - Query params: \`status\` (enum: SUBMITTED, UNDER_REVIEW, APPROVED, DOCS_REQUIRED, REJECTED), \`employmentType\`, \`search\`
-   - Response: \`200 OK\` with \`FinancingApplicationsListResponse\` (list of \`FinancingApplicationDetail\`, \`totalCount\`)
-2. \`PATCH /api/v1/financing/applications/{applicationId}/review\`:
-   - Request body: \`UnderwritingReviewRequest\` (\`status\`, \`approvedAmount\`, \`offeredApr\`, \`note\`, \`underwriterName\`)
-   - Response: \`200 OK\` with \`FinancingApplicationDetail\`
-3. \`PATCH /api/v1/financing/applications/{applicationId}/documents/{documentId}\`:
-   - Request body: \`DocumentVerificationRequest\` (\`status\`: VERIFIED / REJECTED)
-   - Response: \`200 OK\` with \`ApplicationDocument\`
-4. \`GET /api/v1/enquiries\`:
-   - Query params: \`status\`, \`type\`
-   - Response: \`200 OK\` with \`EnquiriesListResponse\`
-5. \`PATCH /api/v1/enquiries/{enquiryId}\`:
-   - Request body: \`UpdateEnquiryRequest\` (\`status\`, \`assignedAdvisor\`, \`resolutionNote\`)
-   - Response: \`200 OK\` with \`EnquiryDetail\`
-6. \`GET /api/v1/enquiries/test-drive\`:
-   - Response: \`200 OK\` with list of \`TestDriveBookingDetail\`
-7. \`PATCH /api/v1/enquiries/test-drive/{bookingId}\`:
-   - Request body: \`UpdateTestDriveRequest\` (\`status\`: CONFIRMED / COMPLETED / RESCHEDULED, \`dealershipLocation\`, \`notes\`)
-   - Response: \`200 OK\` with \`TestDriveBookingDetail\`
-8. \`GET /api/v1/analytics/portfolio-summary\`:
-   - Response: \`200 OK\` with \`PortfolioSummaryResponse\` (kpis: totalRequestedVolume, totalApprovedVolume, approvalRate, avgTicketSize; cibilDistribution; employmentDistribution; monthlyVolumeHistory)
-
-#### 2. MongoDB Document Entities (\`com.velora.carguru.document\`)
-1. \`FinancingApplicationDocument\` (\`@Document(collection = "financing_applications")\`):
-   - \`@Id String id\`
-   - \`@Indexed(unique = true) String referenceNumber\` (format: VEL-APP-YYYY-HEX)
-   - \`ApplicationStatus status\`
-   - \`Applicant applicant\`
-   - \`Employment employment\`
-   - \`VehicleDetails vehicleDetails\`
-   - \`LoanTerms loanTerms\` (requestedLoanAmount, approvedAmount, offeredApr, tenureMonths, downPayment)
-   - \`Integer cibilScore\`
-   - \`List<DocumentMetadata> requiredDocuments\`
-   - \`List<StatusAuditLog> statusHistory\`
-   - \`Instant submittedAt\`, \`Instant updatedAt\`
-2. \`EnquiryDocument\` (\`@Document(collection = "enquiries")\`):
-   - \`@Id String id\`, \`String referenceTicket\`, \`EnquiryStatus status\`, \`String assignedAdvisor\`, \`List<String> resolutionNotes\`
-3. \`TestDriveBookingDocument\` (\`@Document(collection = "test_drive_bookings")\`):
-   - \`@Id String id\`, \`String confirmationCode\`, \`String vehicleId\`, \`String status\`, \`LocalDate preferredDate\`
-
-#### 3. Spring Data Repositories (\`com.velora.carguru.repository\`)
-- \`FinancingApplicationRepository extends MongoRepository<FinancingApplicationDocument, String>\`:
-  - \`Optional<FinancingApplicationDocument> findByReferenceNumberIgnoreCase(String referenceNumber);\`
-  - \`List<FinancingApplicationDocument> findByStatus(String status);\`
-  - \`List<FinancingApplicationDocument> findByApplicantEmail(String email);\`
-  - Custom query / \`MongoTemplate\` for multi-field search and pagination.
-- \`EnquiryRepository extends MongoRepository<EnquiryDocument, String>\`
-- \`TestDriveBookingRepository extends MongoRepository<TestDriveBookingDocument, String>\`
-
-#### 4. Service Implementation (\`com.velora.carguru.service\`)
-- \`FinancingService\`:
-  - Implement \`listApplications(status, employmentType, search, pageable)\`
-  - Implement \`reviewApplication(applicationId, reviewRequest)\`: Updates status, adjusts approvedAmount and offeredApr, appends an immutable \`StatusAuditLog\` with timestamp and underwriter name.
-  - Implement \`verifyDocument(applicationId, documentId, status)\`: Updates document verification status in MongoDB.
-  - Implement \`getPortfolioSummary()\`: Uses MongoDB Aggregation Framework (\`Aggregation.group()\`, \`Aggregation.project()\`) or Spring Data reactive/imperative queries to calculate total requested/approved volumes, approval rate %, average ticket size, and CIBIL credit tier distributions (Prime+ 775+, Prime 725-774, Fair 675-724, Subprime <675).
-- \`EnquiryService\`:
-  - Implement \`listEnquiries(status, type)\`
-  - Implement \`updateEnquiry(enquiryId, updateRequest)\`
-  - Implement \`listTestDrives()\` & \`updateTestDrive(bookingId, updateRequest)\`
-
-#### 5. Spring MVC REST Controllers (\`com.velora.carguru.controller\`)
-- Update \`FinancingApiController\` to implement the updated OpenAPI delegate interface methods:
-  - \`listApplications(...)\`
-  - \`reviewApplication(...)\`
-  - \`verifyDocument(...)\`
-  - \`getPortfolioSummary(...)\`
-- Update \`EnquiriesApiController\` to implement lead and test drive dispatch endpoints.
-
-Deliver the complete, production-ready Java 21 Spring Boot 3 source files, MongoDB schemas, and JUnit 5 / Mockito integration tests.`;
-
   return (
     <div className="pt-20 pb-16 bg-slate-100 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -450,6 +418,19 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
             </button>
 
             <button
+              onClick={() => {
+                setCustomBackendUrl(apiClient.getBaseUrl());
+                setTestEndpointResult(null);
+                setShowConfigModal(true);
+              }}
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors flex items-center space-x-1.5 border border-white/10"
+              title="Configure Backend API endpoint URL"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>Configure Endpoint</span>
+            </button>
+
+            <button
               onClick={onSwitchToClientView}
               className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors flex items-center space-x-1.5 border border-white/10"
             >
@@ -467,6 +448,351 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
             </button>
           </div>
         </div>
+
+        {/* Backend Endpoint Configuration Modal */}
+        {showConfigModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                    <Globe className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Configure Backend API Endpoint</h3>
+                    <p className="text-xs text-slate-500">
+                      Connect the web portal to your local Spring Boot service or a deployed microservice.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowConfigModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Mixed Content / HTTPS Explainer Banner */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center space-x-2 text-amber-900 font-bold text-xs">
+                  <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Why does testing http://localhost:8080 fail while Java is running?</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  This preview is hosted over secure <strong>HTTPS</strong>. Modern web browsers (Chrome, Edge, Firefox, Safari) strictly block HTTPS pages from calling plain <code>http://localhost</code> (Mixed Content &amp; Private Network Access security).
+                </p>
+                <div className="text-[11px] text-amber-900 font-semibold pt-0.5">
+                  Pick any of the 3 instant solutions below to connect your local Java backend:
+                </div>
+              </div>
+
+              {/* 3 Solution Pathways Tabs */}
+              <div className="space-y-3">
+                <div className="flex border-b border-slate-200 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTunnelTab('tunnel')}
+                    className={`pb-2 px-3 font-semibold transition-colors flex items-center space-x-1.5 border-b-2 ${
+                      activeTunnelTab === 'tunnel'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Option 1: HTTPS Tunnel (Recommended)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTunnelTab('chrome')}
+                    className={`pb-2 px-3 font-semibold transition-colors flex items-center space-x-1.5 border-b-2 ${
+                      activeTunnelTab === 'chrome'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Option 2: Browser Setting</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTunnelTab('local')}
+                    className={`pb-2 px-3 font-semibold transition-colors flex items-center space-x-1.5 border-b-2 ${
+                      activeTunnelTab === 'local'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Terminal className="w-3.5 h-3.5" />
+                    <span>Option 3: Local Frontend</span>
+                  </button>
+                </div>
+
+                {/* Option 1: Tunnel Content */}
+                {activeTunnelTab === 'tunnel' && (
+                  <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs space-y-2.5">
+                    <div className="text-slate-700 leading-relaxed">
+                      Run this single command in a new terminal window on your computer to expose your local port 8080 via a free HTTPS URL:
+                    </div>
+
+                    <div className="flex items-center justify-between bg-slate-900 text-slate-100 px-3 py-2 rounded-lg font-mono text-[11px]">
+                      <span>npx localtunnel --port 8080</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText('npx localtunnel --port 8080');
+                          setCopiedTunnelCommand(true);
+                          setTimeout(() => setCopiedTunnelCommand(false), 2000);
+                        }}
+                        className="ml-3 px-2 py-0.5 bg-white/20 hover:bg-white/30 text-white rounded text-[10px] font-sans flex items-center space-x-1"
+                      >
+                        {copiedTunnelCommand ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedTunnelCommand ? 'Copied' : 'Copy Command'}</span>
+                      </button>
+                    </div>
+
+                    <div className="text-[11px] text-slate-500">
+                      localtunnel prints a secure URL (e.g. <code>https://bright-goat-42.loca.lt</code>). Paste it in the URL input below (ending with <code>/api/v1</code>) and click <strong>Test Connection</strong>!
+                    </div>
+
+                    <div className="text-[11px] text-slate-400 flex items-center space-x-2 pt-1 border-t border-slate-200">
+                      <span>Alternatives:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText('cloudflared tunnel --url http://localhost:8080');
+                          setCopiedCloudflareCommand(true);
+                          setTimeout(() => setCopiedCloudflareCommand(false), 2000);
+                        }}
+                        className="text-blue-600 hover:underline font-mono text-[10px]"
+                      >
+                        {copiedCloudflareCommand ? 'Copied cloudflared!' : 'cloudflared tunnel --url http://localhost:8080'}
+                      </button>
+                      <span>·</span>
+                      <code className="text-slate-600 font-mono text-[10px]">ngrok http 8080</code>
+                    </div>
+                  </div>
+                )}
+
+                {/* Option 2: Chrome Content */}
+                {activeTunnelTab === 'chrome' && (
+                  <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs space-y-2">
+                    <div className="font-semibold text-slate-800">
+                      Allow Direct Localhost Calls in Chrome or Edge:
+                    </div>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-600 text-[11px] leading-relaxed">
+                      <li>Click the <strong>Tune / Lock icon</strong> in your browser's address bar (left of the website URL).</li>
+                      <li>Click <strong>Site settings</strong>.</li>
+                      <li>Find the <strong>Insecure content</strong> permission and set it to <strong>Allow</strong>.</li>
+                      <li>Return to this tab, refresh the page, and click <strong>Test Connection</strong>.</li>
+                    </ol>
+                    <div className="text-[10px] text-slate-500 bg-white p-2 rounded-lg border border-slate-200">
+                      Tip: We also added <code>Access-Control-Allow-Private-Network</code> support to <code>CorsConfig.java</code> so Chrome will authorize the local preflight.
+                    </div>
+                  </div>
+                )}
+
+                {/* Option 3: Local Frontend Content */}
+                {activeTunnelTab === 'local' && (
+                  <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs space-y-2">
+                    <div className="font-semibold text-slate-800">
+                      Run Both Frontend and Backend Locally:
+                    </div>
+                    <div className="text-slate-600 text-[11px]">
+                      When the frontend runs on <code>http://localhost:3000</code>, both frontend and backend are on <code>http://</code>, so browsers never trigger mixed-content blocks.
+                    </div>
+                    <div className="bg-slate-900 text-slate-100 p-2.5 rounded-lg font-mono text-[11px]">
+                      cd frontend &amp;&amp; npm run dev
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Then open <code>http://localhost:3000</code> in your browser.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* URL Input Form */}
+              <div className="space-y-3 pt-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Backend API Base URL (must end with /api/v1):
+                </label>
+                <div className="relative">
+                  <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    value={customBackendUrl}
+                    onChange={(e) => {
+                      setCustomBackendUrl(e.target.value);
+                      setTestEndpointResult(null);
+                    }}
+                    placeholder="https://your-tunnel.loca.lt/api/v1 or http://localhost:8080/api/v1"
+                    className="w-full pl-9 pr-3 py-2 text-xs font-mono border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+                  />
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[11px] font-semibold text-slate-500">Quick Presets:</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomBackendUrl('http://localhost:8080/api/v1');
+                        handleTestEndpoint('http://localhost:8080/api/v1');
+                      }}
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-md text-[11px] font-medium transition-colors"
+                    >
+                      Local Port 8080
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomBackendUrl('http://localhost:8081/api/v1');
+                        handleTestEndpoint('http://localhost:8081/api/v1');
+                      }}
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-md text-[11px] font-medium transition-colors"
+                    >
+                      Local Port 8081
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomBackendUrl('/api/v1');
+                        handleTestEndpoint('/api/v1');
+                      }}
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-md text-[11px] font-medium transition-colors"
+                    >
+                      Cloud Gateway Sandbox (/api/v1)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Test Connection Action & Result */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-700">Live Endpoint Probe:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleTestEndpoint(customBackendUrl)}
+                    disabled={testingEndpoint || !customBackendUrl.trim()}
+                    className="px-3 py-1 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-semibold text-slate-800 transition-colors flex items-center space-x-1"
+                  >
+                    <Activity className={`w-3.5 h-3.5 ${testingEndpoint ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
+                    <span>{testingEndpoint ? 'Testing...' : 'Test Connection'}</span>
+                  </button>
+                </div>
+
+                {testEndpointResult && (
+                  <div
+                    className={`p-3 rounded-lg text-[11px] space-y-1.5 ${
+                      testEndpointResult.success
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : testEndpointResult.isMixedContent
+                        ? 'bg-amber-50 text-amber-900 border border-amber-300'
+                        : 'bg-rose-50 text-rose-800 border border-rose-200'
+                    }`}
+                  >
+                    <div className="flex items-start space-x-2">
+                      {testEndpointResult.success ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : testEndpointResult.isMixedContent ? (
+                        <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <div className="font-semibold leading-relaxed">{testEndpointResult.message}</div>
+                        {testEndpointResult.latencyMs && (
+                          <div className="text-[10px] text-emerald-700 font-mono mt-0.5">
+                            Round-trip response: {testEndpointResult.latencyMs}ms
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {testEndpointResult.isMixedContent && (
+                      <div className="pt-2 border-t border-amber-200 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTunnelTab('tunnel')}
+                          className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded font-medium text-[10px] flex items-center space-x-1"
+                        >
+                          <Zap className="w-3 h-3" />
+                          <span>View HTTPS Tunnel Solution</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomBackendUrl('/api/v1');
+                            handleTestEndpoint('/api/v1');
+                          }}
+                          className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded font-medium text-[10px]"
+                        >
+                          Switch to Cloud Gateway (/api/v1)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Local Spring Boot Command Helper */}
+                <div className="pt-1 text-[11px] text-slate-500 flex items-center justify-between border-t border-slate-200/60 mt-2">
+                  <span>Start local backend in terminal:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText('cd backend && ./mvnw spring-boot:run');
+                      setCopiedTerminalCommand(true);
+                      setTimeout(() => setCopiedTerminalCommand(false), 2000);
+                    }}
+                    className="font-mono text-[10px] bg-slate-200/70 hover:bg-slate-200 text-slate-800 px-2 py-0.5 rounded flex items-center space-x-1"
+                  >
+                    {copiedTerminalCommand ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedTerminalCommand ? 'Copied!' : 'mvn spring-boot:run'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {endpointSavedNotice && (
+                <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 p-2.5 rounded-xl text-xs font-semibold flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Configuration saved! Base URL updated across all client workflows.</span>
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={handleResetEndpoint}
+                  className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors flex items-center space-x-1"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Default (:8080)</span>
+                </button>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfigModal(false)}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-xl text-xs font-semibold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveEndpoint(customBackendUrl)}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition-colors flex items-center space-x-1.5 shadow-sm"
+                  >
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Save &amp; Connect</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="bg-white rounded-xl border border-slate-200 p-1.5 mb-6 flex flex-wrap gap-1 shadow-xs">
@@ -537,18 +863,6 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
           >
             <Car className="w-4 h-4" />
             <span>Fleet &amp; Pricing Inventory</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('api_spec')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-colors ml-auto ${
-              activeTab === 'api_spec'
-                ? 'bg-blue-600 text-white'
-                : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200'
-            }`}
-          >
-            <Code2 className="w-4 h-4" />
-            <span>API Specs &amp; Antigravity Prompt</span>
           </button>
         </div>
 
@@ -621,8 +935,16 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
                   <tbody className="divide-y divide-slate-100">
                     {applications.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
-                          No financing applications match the selected criteria.
+                        <td colSpan={8} className="px-4 py-12 text-center">
+                          <div className="max-w-xs mx-auto text-center space-y-2">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div className="text-xs font-bold text-slate-700">No Applications in Queue</div>
+                            <div className="text-[11px] text-slate-500">
+                              No loan dossiers have been submitted in MongoDB yet. Once customers submit financing requests via the public portal, they will appear here in real-time.
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ) : (
@@ -990,9 +1312,24 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {enquiries
-                    .filter((e) => enquiryStatusFilter === 'ALL' || e.status === enquiryStatusFilter)
-                    .map((enq) => (
+                  {enquiries.filter((e) => enquiryStatusFilter === 'ALL' || e.status === enquiryStatusFilter).length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-12 text-center">
+                        <div className="max-w-xs mx-auto text-center space-y-2">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                            <Users className="w-5 h-5" />
+                          </div>
+                          <div className="text-xs font-bold text-slate-700">No Advisory Leads</div>
+                          <div className="text-[11px] text-slate-500">
+                            No consultation inquiries match the filter criteria in MongoDB.
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    enquiries
+                      .filter((e) => enquiryStatusFilter === 'ALL' || e.status === enquiryStatusFilter)
+                      .map((enq) => (
                       <tr key={enq.enquiryId} className="hover:bg-slate-50">
                         <td className="px-4 py-3 font-mono font-bold text-slate-900">
                           <div>{enq.referenceTicket}</div>
@@ -1053,7 +1390,8 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1170,7 +1508,22 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {testDrives.map((b) => (
+                  {testDrives.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <div className="max-w-xs mx-auto text-center space-y-2">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                            <Car className="w-5 h-5" />
+                          </div>
+                          <div className="text-xs font-bold text-slate-700">No Test Drive Bookings</div>
+                          <div className="text-[11px] text-slate-500">
+                            No dealership test drive slots booked in MongoDB yet.
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    testDrives.map((b) => (
                     <tr key={b.bookingId} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-mono font-bold text-slate-900">{b.confirmationCode}</td>
                       <td className="px-4 py-3">
@@ -1203,8 +1556,9 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
+                  ))
+                )}
+              </tbody>
               </table>
             </div>
           </div>
@@ -1346,6 +1700,18 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
           </div>
         )}
 
+        {activeTab === 'analytics' && !portfolioData && (
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400 mb-3">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <div className="text-sm font-bold text-slate-900 mb-1">No Portfolio Risk Analytics Yet</div>
+            <div className="text-xs text-slate-500 max-w-sm mx-auto">
+              There are currently no active loan applications in MongoDB to aggregate risk and underwriting performance metrics.
+            </div>
+          </div>
+        )}
+
         {/* ======================================================== */}
         {/* TAB 5: FLEET & PRICING INVENTORY (Website Owner)         */}
         {/* ======================================================== */}
@@ -1448,145 +1814,6 @@ Deliver the complete, production-ready Java 21 Spring Boot 3 source files, Mongo
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* TAB 6: API SPEC & ANTIGRAVITY PROMPT GENERATOR           */}
-        {/* ======================================================== */}
-        {activeTab === 'api_spec' && (
-          <div className="space-y-6">
-            {/* Missing APIs Analysis Card */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-              <div className="flex items-center space-x-2">
-                <BadgeAlert className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base font-bold text-slate-900">
-                  Missing vs Implemented Backend APIs for Full Functional Separation
-                </h3>
-              </div>
-              <p className="text-xs text-slate-600">
-                To bridge the requirements between Public User actions and Admin/Analyst management, the following APIs were verified and built directly into the CarGuru full-stack server:
-              </p>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border border-slate-200 rounded-xl overflow-hidden">
-                  <thead className="bg-slate-50 font-bold text-slate-700 uppercase text-[10px] border-b">
-                    <tr>
-                      <th className="p-3">Endpoint &amp; Method</th>
-                      <th className="p-3">Functional Category</th>
-                      <th className="p-3">Required Purpose</th>
-                      <th className="p-3">Current Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-[11px]">
-                    <tr>
-                      <td className="p-3 font-mono font-bold text-slate-900">GET /api/v1/financing/applications</td>
-                      <td className="p-3"><span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-bold">Admin/Underwriter</span></td>
-                      <td className="p-3">Retrieve all applications for the underwriting queue with status &amp; name search.</td>
-                      <td className="p-3 text-emerald-600 font-bold flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Implemented &amp; Live</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 font-mono font-bold text-slate-900">PATCH /api/v1/financing/applications/:id/review</td>
-                      <td className="p-3"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">Underwriter</span></td>
-                      <td className="p-3">Approve/reject loan, customize sanctioned amount, set approved APR, log audit rationale.</td>
-                      <td className="p-3 text-emerald-600 font-bold flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Implemented &amp; Live</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 font-mono font-bold text-slate-900">PATCH /api/v1/financing/applications/:id/documents/:docId</td>
-                      <td className="p-3"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">Underwriter</span></td>
-                      <td className="p-3">Verify KYC PAN, Aadhaar, Salary Slips, or ITR certificates.</td>
-                      <td className="p-3 text-emerald-600 font-bold flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Implemented &amp; Live</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 font-mono font-bold text-slate-900">GET /api/v1/enquiries</td>
-                      <td className="p-3"><span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-bold">Admin Lead CRM</span></td>
-                      <td className="p-3">View and triage incoming auto financing and consultation requests.</td>
-                      <td className="p-3 text-emerald-600 font-bold flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Implemented &amp; Live</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 font-mono font-bold text-slate-900">PATCH /api/v1/enquiries/:id</td>
-                      <td className="p-3"><span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-bold">Admin Lead CRM</span></td>
-                      <td className="p-3">Assign relationship manager to inquiry ticket and append notes.</td>
-                      <td className="p-3 text-emerald-600 font-bold flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Implemented &amp; Live</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 font-mono font-bold text-slate-900">GET /api/v1/analytics/portfolio-summary</td>
-                      <td className="p-3"><span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Portfolio Analyst</span></td>
-                      <td className="p-3">Aggregated credit pipeline volume, CIBIL tiers, DTI health, approval rate.</td>
-                      <td className="p-3 text-emerald-600 font-bold flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Implemented &amp; Live</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 font-mono font-bold text-slate-900">POST /api/v1/auth/login</td>
-                      <td className="p-3"><span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold">All Users</span></td>
-                      <td className="p-3">Simple role-based session authentication for Customer vs Admin vs Analyst.</td>
-                      <td className="p-3 text-emerald-600 font-bold flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Implemented &amp; Live</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Antigravity Prompt Generator */}
-            <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                    Ready-to-Use Agent Prompt
-                  </div>
-                  <h3 className="text-base font-bold text-white">
-                    Antigravity Business Logic &amp; Microservice Generation Prompt
-                  </h3>
-                </div>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(antigravityPrompt);
-                    setCopiedPrompt(true);
-                    setTimeout(() => setCopiedPrompt(false), 2500);
-                  }}
-                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5"
-                >
-                  {copiedPrompt ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  <span>{copiedPrompt ? 'Copied Prompt!' : 'Copy Antigravity Prompt'}</span>
-                </button>
-              </div>
-
-              <p className="text-xs text-slate-400">
-                You can copy this exact prompt and provide it to your Antigravity chat session to create the complete production backend microservice, database schemas, and business rules:
-              </p>
-
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-[11px] text-slate-300 max-h-64 overflow-y-auto whitespace-pre-wrap selection:bg-emerald-800">
-                {antigravityPrompt}
-              </div>
-            </div>
-
-            {/* OpenAPI 3.0 REST Specification */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Standardized Specification
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    OpenAPI 3.0 REST Specification (JSON)
-                  </h3>
-                </div>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(openApiSpec, null, 2));
-                    setCopiedSpec(true);
-                    setTimeout(() => setCopiedSpec(false), 2500);
-                  }}
-                  className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5"
-                >
-                  {copiedSpec ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  <span>{copiedSpec ? 'Copied OpenAPI Spec!' : 'Copy OpenAPI Spec'}</span>
-                </button>
-              </div>
-
-              <div className="bg-slate-900 p-4 rounded-xl font-mono text-[11px] text-slate-300 max-h-64 overflow-y-auto whitespace-pre-wrap">
-                {JSON.stringify(openApiSpec, null, 2)}
               </div>
             </div>
           </div>

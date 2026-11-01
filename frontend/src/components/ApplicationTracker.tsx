@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient, FinancingApplicationDetail, EnquiryDetail } from '../api/client';
+import { apiClient, FinancingApplicationDetail, EnquiryDetail, isDemoModeActive } from '../api/client';
 import { formatINR, formatINRLakhCrore } from '../utils/formatters';
-import { Search, ShieldCheck, FileUp, Clock, AlertCircle, FileText, CheckCircle2, Building2, Check, ArrowRight } from 'lucide-react';
+import { Search, ShieldCheck, FileUp, Clock, AlertCircle, FileText, CheckCircle2, Building2, Check, ArrowRight, Bell, Receipt } from 'lucide-react';
 import { DocumentChecklist } from './DocumentChecklist';
+import { FinanceInvoiceModal, InvoiceType } from './FinanceInvoiceModal';
+import { ScheduleReminderModal, ReminderCategory } from './ScheduleReminderModal';
 
 interface ApplicationTrackerProps {
   initialRef?: string;
 }
 
 export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({ initialRef = '' }) => {
-  const [referenceQuery, setReferenceQuery] = useState(initialRef || 'VEL-APP-2026-DEMO01');
+  const [referenceQuery, setReferenceQuery] = useState(initialRef || (isDemoModeActive() ? 'VEL-APP-2026-DEMO01' : ''));
   const [applicantEmail, setApplicantEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +19,18 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({ initialR
 
   const [application, setApplication] = useState<FinancingApplicationDetail | null>(null);
   const [enquiry, setEnquiry] = useState<EnquiryDetail | null>(null);
+
+  // Invoice & Reminder Modals
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [invoiceType, setInvoiceType] = useState<InvoiceType>('loan');
+  const [invoiceData, setInvoiceData] = useState<any>(null);
+
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
+  const [reminderCategory, setReminderCategory] = useState<ReminderCategory>('loan');
+  const [reminderTargetId, setReminderTargetId] = useState('');
+  const [reminderName, setReminderName] = useState('');
+  const [reminderContact, setReminderContact] = useState('');
+  const [reminderMeta, setReminderMeta] = useState<any>({});
 
   // Document upload state
   const [docType, setDocType] = useState<any>('PAY_SLIP');
@@ -31,8 +45,7 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({ initialR
   useEffect(() => {
     if (initialRef) {
       handleSearch(initialRef);
-    } else {
-      // Default to load demo application
+    } else if (isDemoModeActive()) {
       handleSearch('VEL-APP-2026-DEMO01');
     }
   }, [initialRef]);
@@ -56,7 +69,14 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({ initialR
         setApplication(res);
       }
     } catch (err: any) {
-      setError(err.message || 'Reference code not found. Please verify the code.');
+      const errMsg = err.message || '';
+      if (errMsg.includes('404')) {
+        setError(
+          `Application '${q}' was not found in the active database. If you recently connected a local Spring Boot backend, you can generate a live application by submitting a loan request via 'Apply for Loan', or explore with one of the quick samples below.`
+        );
+      } else {
+        setError(errMsg || 'Reference code not found. Please verify the code.');
+      }
     } finally {
       setLoading(false);
     }
@@ -150,7 +170,7 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({ initialR
                 type="text"
                 value={referenceQuery}
                 onChange={(e) => setReferenceQuery(e.target.value)}
-                placeholder="Enter Reference Number (e.g. VEL-APP-2026-DEMO01)"
+                placeholder={isDemoModeActive() ? "Enter Reference Number (e.g. VEL-APP-2026-DEMO01)" : "Enter Reference Number (e.g. VEL-APP-2026-...)"}
                 className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
               />
             </div>
@@ -163,30 +183,43 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({ initialR
             </button>
           </div>
 
-          <div className="flex items-center space-x-2 text-[11px] text-slate-500">
-            <span>Quick Samples:</span>
-            <button
-              type="button"
-              onClick={() => {
-                setReferenceQuery('VEL-APP-2026-DEMO01');
-                handleSearch('VEL-APP-2026-DEMO01');
-              }}
-              className="text-slate-700 underline font-mono hover:text-slate-900"
-            >
-              VEL-APP-2026-DEMO01 (Loan)
-            </button>
-            <span>·</span>
-            <button
-              type="button"
-              onClick={() => {
-                setReferenceQuery('VEL-ENQ-DEMO01');
-                handleSearch('VEL-ENQ-DEMO01');
-              }}
-              className="text-slate-700 underline font-mono hover:text-slate-900"
-            >
-              VEL-ENQ-DEMO01 (Consultation)
-            </button>
-          </div>
+          {isDemoModeActive() && (
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+              <span>Quick Samples:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setReferenceQuery('VEL-APP-2026-DEMO01');
+                  handleSearch('VEL-APP-2026-DEMO01');
+                }}
+                className="text-slate-700 underline font-mono hover:text-slate-900"
+              >
+                VEL-APP-2026-DEMO01 (Under Review)
+              </button>
+              <span>·</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setReferenceQuery('VEL-APP-2026-DEMO02');
+                  handleSearch('VEL-APP-2026-DEMO02');
+                }}
+                className="text-slate-700 underline font-mono hover:text-slate-900"
+              >
+                VEL-APP-2026-DEMO02 (Approved)
+              </button>
+              <span>·</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setReferenceQuery('VEL-ENQ-DEMO01');
+                  handleSearch('VEL-ENQ-DEMO01');
+                }}
+                className="text-slate-700 underline font-mono hover:text-slate-900"
+              >
+                VEL-ENQ-DEMO01 (Consultation)
+              </button>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -209,7 +242,41 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({ initialR
                     {application.vehicleDetails.year} {application.vehicleDetails.make} {application.vehicleDetails.model}
                   </h2>
                 </div>
-                <div>{getStatusBadge(application.status)}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {getStatusBadge(application.status)}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInvoiceType('loan');
+                      setInvoiceData(application);
+                      setInvoiceModalOpen(true);
+                    }}
+                    className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[11px] rounded-lg transition-colors flex items-center space-x-1 shadow-xs"
+                    title="View & Print Sanction Tax Invoice"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Sanction Invoice</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReminderCategory('loan');
+                      setReminderTargetId(application.referenceNumber);
+                      setReminderName(`${application.applicant?.firstName || ''} ${application.applicant?.lastName || ''}`.trim() || 'Borrower');
+                      setReminderContact(application.applicant?.phone || application.applicant?.email || '');
+                      setReminderMeta({
+                        vehicle: `${application.vehicleDetails?.make} ${application.vehicleDetails?.model}`,
+                        emi: Math.round(((application.loanTerms?.approvedAmount || application.loanTerms?.requestedLoanAmount || 2000000) * 0.0205)).toLocaleString('en-IN'),
+                      });
+                      setReminderModalOpen(true);
+                    }}
+                    className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-[11px] rounded-lg transition-colors flex items-center space-x-1"
+                    title="Schedule EMI / Document Verification Reminder"
+                  >
+                    <Bell className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Set Reminder</span>
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
@@ -376,7 +443,40 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({ initialR
                 <div className="text-[11px] text-slate-500 font-mono">Ticket #{enquiry.referenceTicket}</div>
                 <h2 className="text-base font-bold text-slate-900">CarGuru Finance Consultation Status</h2>
               </div>
-              <div>{getStatusBadge(enquiry.status)}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                {getStatusBadge(enquiry.status)}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInvoiceType('enquiry');
+                    setInvoiceData(enquiry);
+                    setInvoiceModalOpen(true);
+                  }}
+                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[11px] rounded-lg transition-colors flex items-center space-x-1 shadow-xs"
+                  title="View Consultation Service Voucher"
+                >
+                  <FileText className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Advisory Voucher</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReminderCategory('enquiry');
+                    setReminderTargetId(enquiry.referenceTicket);
+                    setReminderName(`${enquiry.customer?.firstName || ''} ${enquiry.customer?.lastName || ''}`.trim() || 'Client');
+                    setReminderContact(enquiry.customer?.phone || enquiry.customer?.email || '');
+                    setReminderMeta({
+                      advisor: (enquiry as any).assignedAdvisor || 'Priya Nair',
+                    });
+                    setReminderModalOpen(true);
+                  }}
+                  className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-semibold text-[11px] rounded-lg transition-colors flex items-center space-x-1"
+                  title="Schedule Advisor Follow-up Reminder"
+                >
+                  <Bell className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Follow-up Alert</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
@@ -420,6 +520,23 @@ export const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({ initialR
           </div>
         )}
 
+        {/* Modals */}
+        <FinanceInvoiceModal
+          isOpen={invoiceModalOpen}
+          onClose={() => setInvoiceModalOpen(false)}
+          type={invoiceType}
+          data={invoiceData}
+        />
+
+        <ScheduleReminderModal
+          isOpen={reminderModalOpen}
+          onClose={() => setReminderModalOpen(false)}
+          category={reminderCategory}
+          targetId={reminderTargetId}
+          recipientName={reminderName}
+          recipientContact={reminderContact}
+          metadata={reminderMeta}
+        />
       </div>
     </div>
   );

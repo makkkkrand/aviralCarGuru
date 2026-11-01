@@ -555,9 +555,178 @@ testDriveBookings.set('book_sample_02', {
   preferredTimeSlot: '11:00 - 12:30',
   driverLicenseValid: true,
   notes: 'Testing ADAS features and family seating comfort.',
-  status: 'CONFIRMED',
   scheduledDateTime: '2026-10-26T11:00:00.000Z',
   createdAt: new Date(Date.now() - 28800000).toISOString(),
+});
+
+// ==========================================
+// BACKEND GATEWAY PROXY & HEALTH CHECK
+// ==========================================
+let TARGET_BACKEND_URL = (process.env.BACKEND_URL || 'http://127.0.0.1:8080').replace(/\/+$/, '');
+
+let lastBackendStatusCheck = 0;
+let isBackendLive = false;
+let backendLatencyMs = 0;
+let backendErrorDetails: string | null = null;
+
+async function checkBackendConnectivity(force = false): Promise<boolean> {
+  const now = Date.now();
+  if (!force && now - lastBackendStatusCheck < 8000) {
+    return isBackendLive;
+  }
+  lastBackendStatusCheck = now;
+  const startTime = Date.now();
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1200);
+
+    const res = await fetch(`${TARGET_BACKEND_URL}/actuator/health`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    }).catch(() => null);
+
+    if (res && (res.status === 200 || res.status === 503)) {
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('json') && !res.headers.get('x-gateway-provider')) {
+        const body = await res.json().catch(() => null);
+        if (body && (body.status || body.components)) {
+          clearTimeout(timeout);
+          isBackendLive = true;
+          backendLatencyMs = Date.now() - startTime;
+          backendErrorDetails = null;
+          return true;
+        }
+      }
+    }
+
+    const res2 = await fetch(`${TARGET_BACKEND_URL}/api/v1/catalog/vehicles/lookup?limit=1`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    }).catch(() => null);
+    clearTimeout(timeout);
+
+    if (res2 && res2.ok) {
+      const contentType = res2.headers.get('content-type') || '';
+      if (contentType.includes('json') && !res2.headers.get('x-gateway-provider')) {
+        const data = await res2.json().catch(() => null);
+        if (Array.isArray(data)) {
+          isBackendLive = true;
+          backendLatencyMs = Date.now() - startTime;
+          backendErrorDetails = null;
+          return true;
+        }
+      }
+    }
+
+    isBackendLive = false;
+    backendErrorDetails = 'Spring Boot backend in standby (offline or starting)';
+    return false;
+  } catch (err: any) {
+    isBackendLive = false;
+    backendLatencyMs = 0;
+    backendErrorDetails = err?.message || 'Connection refused';
+    return false;
+  }
+}
+
+// System status endpoint for frontend UI and admin dashboard
+app.get(['/api/v1/system/backend-status', '/api/backend-health'], async (req: Request, res: Response) => {
+  const forceCheck = req.query.refresh === 'true';
+  const live = await checkBackendConnectivity(forceCheck);
+
+  res.json({
+    connected: live,
+    backendUrl: TARGET_BACKEND_URL,
+    engine: 'Spring Boot 3.3.4 (Java 21 + Spring Data MongoDB)',
+    usingLiveBackend: live,
+    latencyMs: live ? backendLatencyMs : undefined,
+    error: live ? null : backendErrorDetails,
+    timestamp: new Date().toISOString(),
+    routes: [
+      '/api/v1/catalog/vehicles/lookup',
+      '/api/v1/catalog/vehicles/{id}/finance-profile',
+      '/api/v1/financing/calculator',
+      '/api/v1/financing/options',
+      '/api/v1/financing/pre-qualification',
+      '/api/v1/financing/applications',
+      '/api/v1/financing/applications/{id}',
+      '/api/v1/financing/applications/{id}/review',
+      '/api/v1/financing/applications/{id}/documents',
+      '/api/v1/enquiries',
+      '/api/v1/enquiries/{id}',
+      '/api/v1/enquiries/test-drive',
+      '/api/v1/analytics/portfolio-summary',
+      '/actuator/health',
+      '/swagger-ui.html',
+    ],
+  });
+});
+
+app.post('/api/v1/system/backend-url', (req: Request, res: Response) => {
+  const { backendUrl } = req.body;
+  if (backendUrl && typeof backendUrl === 'string') {
+    TARGET_BACKEND_URL = backendUrl.trim().replace(/\/+$/, '');
+    isBackendLive = false;
+    lastBackendStatusCheck = 0;
+  }
+  res.json({ success: true, backendUrl: TARGET_BACKEND_URL });
+});
+
+// Proxy middleware: when backend is live, forward /api/v1/* calls to Spring Boot
+app.use('/api/v1', async (req: Request, res: Response, next) => {
+  if (req.path.startsWith('/system/') || req.path.startsWith('/auth/')) {
+    return next();
+  }
+
+  const live = await checkBackendConnectivity();
+  if (!live) {
+    res.setHeader('x-gateway-provider', 'express-fallback-mock');
+    return next();
+  }
+
+  try {
+    const targetUrl = `${TARGET_BACKEND_URL}/api/v1${req.path}${req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    const headers: Record<string, string> = {};
+    if (req.headers['content-type']) {
+      headers['content-type'] = req.headers['content-type'] as string;
+    }
+    if (req.headers['authorization']) {
+      headers['authorization'] = req.headers['authorization'] as string;
+    }
+
+    const fetchOpts: RequestInit = {
+      method: req.method,
+      headers,
+      signal: controller.signal,
+    };
+
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
+      fetchOpts.body = JSON.stringify(req.body);
+      headers['content-type'] = 'application/json';
+    }
+
+    const backendResponse = await fetch(targetUrl, fetchOpts);
+    clearTimeout(timeout);
+
+    res.status(backendResponse.status);
+    const contentType = backendResponse.headers.get('content-type');
+    if (contentType) res.setHeader('content-type', contentType);
+    res.setHeader('x-gateway-provider', 'spring-boot-3-mongodb');
+
+    const bodyText = await backendResponse.text();
+    return res.send(bodyText);
+  } catch (err: any) {
+    console.warn(`[Gateway Proxy] Spring Boot error on ${req.method} ${req.path}: ${err.message}. Falling back to Node mock.`);
+    isBackendLive = false;
+    res.setHeader('x-gateway-provider', 'express-fallback-mock');
+    return next();
+  }
 });
 
 // ==========================================

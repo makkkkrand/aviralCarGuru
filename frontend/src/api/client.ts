@@ -208,8 +208,260 @@ export interface UploadDocumentParams {
   [key: string]: any;
 }
 
+export interface BackendStatus {
+  connected: boolean;
+  backendUrl: string;
+  engine: string;
+  usingLiveBackend: boolean;
+  latencyMs?: number;
+  error?: string | null;
+  timestamp: string;
+  routes?: string[];
+  isMixedContentBlocked?: boolean;
+  isHttpsContext?: boolean;
+  solutionPresets?: {
+    tunnelCommand: string;
+    cloudflaredCommand: string;
+    ngrokCommand: string;
+    chromeInsecureHelp: string;
+  };
+}
+
+export function isDemoModeActive(): boolean {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return window.localStorage.getItem('carguru_demo_mode') === 'true';
+  }
+  return false;
+}
+
+export function setDemoModeActive(active: boolean): void {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem('carguru_demo_mode', active ? 'true' : 'false');
+  }
+}
+
 class ApiClient {
-  private baseUrl = '/api/v1';
+  private baseUrl: string;
+
+  constructor() {
+    this.baseUrl = this.resolveInitialBaseUrl();
+  }
+
+  private resolveInitialBaseUrl(): string {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const saved = window.localStorage.getItem('carguru_backend_api_url');
+      if (saved && saved.trim()) {
+        const cleaned = saved.trim().replace(/\/+$/, '');
+        return cleaned.endsWith('/api/v1') ? cleaned : `${cleaned}/api/v1`;
+      }
+    }
+    const envUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_API_BASE_URL || '';
+    if (envUrl && envUrl.trim()) {
+      const cleaned = envUrl.trim().replace(/\/+$/, '');
+      return cleaned.endsWith('/api/v1') ? cleaned : `${cleaned}/api/v1`;
+    }
+    // Default to the user's local Spring Boot service on port 8080
+    return 'http://localhost:8080/api/v1';
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  setBaseUrl(url: string, persist = true): string {
+    let cleaned = url.trim().replace(/\/+$/, '');
+    if (!cleaned) {
+      cleaned = 'http://localhost:8080';
+    }
+    const finalUrl = cleaned.endsWith('/api/v1') ? cleaned : `${cleaned}/api/v1`;
+    this.baseUrl = finalUrl;
+    if (persist && typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('carguru_backend_api_url', finalUrl);
+    }
+    return finalUrl;
+  }
+
+  resetBaseUrl(): string {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem('carguru_backend_api_url');
+    }
+    this.baseUrl = 'http://localhost:8080/api/v1';
+    return this.baseUrl;
+  }
+
+  /**
+   * Safe fetch with automatic gateway fallback if target backend is temporarily unreachable
+   */
+  private async request(path: string, options?: RequestInit): Promise<Response> {
+    const formattedPath = path.startsWith('/') ? path : `/${path}`;
+    const primaryUrl = `${this.baseUrl}${formattedPath}`;
+
+    // Add bypass header for public HTTPS tunnels (e.g. localtunnel)
+    const customHeaders: Record<string, string> = {
+      'Bypass-Tunnel-Reminder': 'true',
+    };
+    if (options?.headers) {
+      if (options.headers instanceof Headers) {
+        options.headers.forEach((value, key) => {
+          customHeaders[key] = value;
+        });
+      } else if (Array.isArray(options.headers)) {
+        options.headers.forEach(([key, value]) => {
+          customHeaders[key] = value;
+        });
+      } else {
+        Object.assign(customHeaders, options.headers);
+      }
+    }
+
+    const mergedOptions: RequestInit = {
+      ...options,
+      headers: customHeaders,
+    };
+
+    try {
+      const res = await fetch(primaryUrl, mergedOptions);
+      // ONLY if 1-Click Role Switcher (Instant Demo) is active, allow fallback to demo mock data when 404
+      if (res.status === 404 && isDemoModeActive() && !this.baseUrl.startsWith('/api/v1')) {
+        try {
+          const fallbackRes = await fetch(`/api/v1${formattedPath}`, mergedOptions);
+          if (fallbackRes.ok) {
+            return fallbackRes;
+          }
+        } catch {
+          // ignore fallback error and return original 404 response
+        }
+      }
+      return res;
+    } catch (networkErr) {
+      // If the primary URL was an external or localhost target and failed, fallback ONLY if in Instant Demo mode
+      if (isDemoModeActive() && !this.baseUrl.startsWith('/api/v1')) {
+        try {
+          const fallbackRes = await fetch(`/api/v1${formattedPath}`, mergedOptions);
+          return fallbackRes;
+        } catch {
+          // ignore fallback error and throw original
+        }
+      }
+      throw networkErr;
+    }
+  }
+
+  async checkBackendStatus(targetUrl?: string): Promise<BackendStatus> {
+    const rawTarget = targetUrl || this.baseUrl;
+    const cleaned = rawTarget.trim().replace(/\/+$/, '');
+    const candidateApiBase = cleaned.endsWith('/api/v1') ? cleaned : `${cleaned}/api/v1`;
+    const candidateRoot = cleaned.replace(/\/api\/v1\/?$/, '');
+
+    const isBrowserHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const isTargetHttp = candidateApiBase.startsWith('http://');
+    const isLocalhostTarget = candidateApiBase.includes('localhost') || candidateApiBase.includes('127.0.0.1');
+    const isMixedContentBlocked = isBrowserHttps && isTargetHttp;
+
+    const solutionPresets = {
+      tunnelCommand: 'npx localtunnel --port 8080',
+      cloudflaredCommand: 'cloudflared tunnel --url http://localhost:8080',
+      ngrokCommand: 'ngrok http 8080',
+      chromeInsecureHelp: 'In Chrome/Edge: Click tune/lock icon in address bar -> Site settings -> Set "Insecure content" to Allow -> Reload.',
+    };
+
+    const startTime = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2500);
+
+      // Probe direct endpoint from browser
+      const res = await fetch(`${candidateApiBase}/catalog/vehicles/lookup?limit=1`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+        },
+        signal: controller.signal,
+      }).catch(() => null);
+
+      if (res && res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('json')) {
+          clearTimeout(timeout);
+          return {
+            connected: true,
+            backendUrl: candidateApiBase,
+            engine: 'Spring Boot 3.3.4 (Java 21 + Spring Data MongoDB)',
+            usingLiveBackend: true,
+            latencyMs: Date.now() - startTime,
+            timestamp: new Date().toISOString(),
+            isHttpsContext: isBrowserHttps,
+          };
+        }
+      }
+
+      // Check actuator on target host
+      const resActuator = await fetch(`${candidateRoot}/actuator/health`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+        },
+        signal: controller.signal,
+      }).catch(() => null);
+      clearTimeout(timeout);
+
+      if (resActuator && resActuator.ok) {
+        return {
+          connected: true,
+          backendUrl: candidateApiBase,
+          engine: 'Spring Boot 3.3.4 (Actuator Live)',
+          usingLiveBackend: true,
+          latencyMs: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+          isHttpsContext: isBrowserHttps,
+        };
+      }
+    } catch (e: any) {
+      // ignore
+    }
+
+    const mixedContentErrorMsg = `Browser Mixed Content Block: This web application is running on HTTPS (${typeof window !== 'undefined' ? window.location.origin : 'https'}), so your browser blocks unencrypted HTTP calls to ${candidateApiBase}. Even though your Spring Boot service is active, Chrome/Edge/Firefox blocks it for security.`;
+
+    // Fallback info from local gateway
+    try {
+      const sysRes = await fetch('/api/v1/system/backend-status');
+      if (sysRes.ok) {
+        const sysData = await sysRes.json();
+        return {
+          connected: false,
+          backendUrl: candidateApiBase,
+          engine: 'Spring Boot 3.3.4 (Standby / Mixed Content Block)',
+          usingLiveBackend: false,
+          error: isMixedContentBlocked
+            ? mixedContentErrorMsg
+            : `Could not reach ${candidateApiBase}. Please verify your Spring Boot backend is running.`,
+          timestamp: new Date().toISOString(),
+          routes: sysData.routes,
+          isMixedContentBlocked,
+          isHttpsContext: isBrowserHttps,
+          solutionPresets,
+        };
+      }
+    } catch {
+      // ignore
+    }
+
+    return {
+      connected: false,
+      backendUrl: candidateApiBase,
+      engine: 'Spring Boot 3.3.4 (Standby / Mixed Content Block)',
+      usingLiveBackend: false,
+      error: isMixedContentBlocked
+        ? mixedContentErrorMsg
+        : `Could not connect to ${candidateApiBase}.`,
+      timestamp: new Date().toISOString(),
+      isMixedContentBlocked,
+      isHttpsContext: isBrowserHttps,
+      solutionPresets,
+    };
+  }
 
   async lookupVehicles(query = '', make = '', limit = 10): Promise<VehicleSummary[]> {
     const params = new URLSearchParams();
@@ -217,13 +469,14 @@ class ApiClient {
     if (make) params.append('make', make);
     if (limit) params.append('limit', limit.toString());
 
-    const res = await fetch(`${this.baseUrl}/catalog/vehicles/lookup?${params.toString()}`);
+    const res = await this.request(`/catalog/vehicles/lookup?${params.toString()}`);
     if (!res.ok) throw new Error(`Failed to lookup vehicles: ${res.statusText}`);
-    return res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data.vehicles || []);
   }
 
   async getVehicleFinanceProfile(vehicleId: string): Promise<VehicleFinanceProfile> {
-    const res = await fetch(`${this.baseUrl}/catalog/vehicles/${encodeURIComponent(vehicleId)}/finance-profile`);
+    const res = await this.request(`/catalog/vehicles/${encodeURIComponent(vehicleId)}/finance-profile`);
     if (!res.ok) throw new Error(`Failed to get finance profile: ${res.statusText}`);
     return res.json();
   }
@@ -247,7 +500,7 @@ class ApiClient {
     interestRateAnnual: number;
     tenureMonths: number;
   }): Promise<LoanCalculationResponse> {
-    const res = await fetch(`${this.baseUrl}/financing/calculator`, {
+    const res = await this.request('/financing/calculator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -259,14 +512,14 @@ class ApiClient {
     return res.json();
   }
 
-  async getFinancingOptions(): Promise<any> {
-    const res = await fetch(`${this.baseUrl}/financing/options`);
+  async getFinancingOptions(creditTier = 'EXCELLENT'): Promise<any> {
+    const res = await this.request(`/financing/options?creditTier=${encodeURIComponent(creditTier)}`);
     if (!res.ok) throw new Error(`Failed to get financing options: ${res.statusText}`);
     return res.json();
   }
 
   async submitPreQualification(params: PreQualificationRequest): Promise<PreQualificationResponse> {
-    const res = await fetch(`${this.baseUrl}/financing/pre-qualification`, {
+    const res = await this.request('/financing/pre-qualification', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -283,7 +536,7 @@ class ApiClient {
   }
 
   async submitApplication(payload: FinancingApplicationRequest): Promise<FinancingApplicationResponse> {
-    const res = await fetch(`${this.baseUrl}/financing/applications`, {
+    const res = await this.request('/financing/applications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -300,11 +553,11 @@ class ApiClient {
   }
 
   async getApplication(applicationIdOrRef: string, applicantEmail?: string): Promise<FinancingApplicationDetail> {
-    let url = `${this.baseUrl}/financing/applications/${encodeURIComponent(applicationIdOrRef)}`;
+    let url = `/financing/applications/${encodeURIComponent(applicationIdOrRef)}`;
     if (applicantEmail) {
       url += `?applicantEmail=${encodeURIComponent(applicantEmail)}`;
     }
-    const res = await fetch(url);
+    const res = await this.request(url);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Application lookup failed: ${res.status}`);
@@ -323,7 +576,7 @@ class ApiClient {
   }
 
   async uploadDocument(applicationIdOrRef: string, documentType: string, fileName: string): Promise<any> {
-    const res = await fetch(`${this.baseUrl}/financing/applications/${encodeURIComponent(applicationIdOrRef)}/documents`, {
+    const res = await this.request(`/financing/applications/${encodeURIComponent(applicationIdOrRef)}/documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ documentType, fileName }),
@@ -340,7 +593,7 @@ class ApiClient {
   }
 
   async submitEnquiry(payload: CreateEnquiryRequest): Promise<EnquiryResponse> {
-    const res = await fetch(`${this.baseUrl}/enquiries`, {
+    const res = await this.request('/enquiries', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -357,7 +610,7 @@ class ApiClient {
   }
 
   async getEnquiry(enquiryIdOrRef: string): Promise<EnquiryDetail> {
-    const res = await fetch(`${this.baseUrl}/enquiries/${encodeURIComponent(enquiryIdOrRef)}`);
+    const res = await this.request(`/enquiries/${encodeURIComponent(enquiryIdOrRef)}`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Enquiry lookup failed: ${res.status}`);
@@ -366,7 +619,7 @@ class ApiClient {
   }
 
   async bookTestDrive(payload: any): Promise<TestDriveBookingResponse> {
-    const res = await fetch(`${this.baseUrl}/enquiries/test-drive`, {
+    const res = await this.request('/enquiries/test-drive', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -380,7 +633,7 @@ class ApiClient {
 
   async cancelEnquiry(enquiryIdOrRef: string, reasonOrObj: string | { reason?: string } = 'Cancelled by customer'): Promise<any> {
     const reason = typeof reasonOrObj === 'string' ? reasonOrObj : (reasonOrObj?.reason || 'Cancelled by customer');
-    const res = await fetch(`${this.baseUrl}/enquiries/${encodeURIComponent(enquiryIdOrRef)}/cancel`, {
+    const res = await this.request(`/enquiries/${encodeURIComponent(enquiryIdOrRef)}/cancel`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
@@ -406,9 +659,12 @@ class ApiClient {
     if (params.employmentType && params.employmentType !== 'ALL') searchParams.append('employmentType', params.employmentType);
     if (params.search) searchParams.append('search', params.search);
 
-    const res = await fetch(`${this.baseUrl}/financing/applications?${searchParams.toString()}`);
+    const res = await this.request(`/financing/applications?${searchParams.toString()}`);
     if (!res.ok) throw new Error(`Failed to list applications: ${res.statusText}`);
-    return res.json();
+    const data = await res.json();
+    const applications: FinancingApplicationDetail[] = Array.isArray(data) ? data : (data.applications || []);
+    const total = typeof data.total === 'number' ? data.total : (typeof data.totalCount === 'number' ? data.totalCount : applications.length);
+    return { total, applications };
   }
 
   async reviewApplication(
@@ -421,7 +677,7 @@ class ApiClient {
       underwriterName?: string;
     }
   ): Promise<{ success: boolean; application: FinancingApplicationDetail }> {
-    const res = await fetch(`${this.baseUrl}/financing/applications/${encodeURIComponent(applicationIdOrRef)}/review`, {
+    const res = await this.request(`/financing/applications/${encodeURIComponent(applicationIdOrRef)}/review`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -430,7 +686,9 @@ class ApiClient {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Underwriting review failed: ${res.status}`);
     }
-    return res.json();
+    const data = await res.json();
+    const application: FinancingApplicationDetail = data.application || data;
+    return { success: true, application };
   }
 
   async verifyDocument(
@@ -438,8 +696,8 @@ class ApiClient {
     documentId: string,
     status: 'VERIFIED' | 'REJECTED' | 'UPLOADED' = 'VERIFIED'
   ): Promise<{ success: boolean; document: ApplicationDocument }> {
-    const res = await fetch(
-      `${this.baseUrl}/financing/applications/${encodeURIComponent(applicationIdOrRef)}/documents/${encodeURIComponent(documentId)}`,
+    const res = await this.request(
+      `/financing/applications/${encodeURIComponent(applicationIdOrRef)}/documents/${encodeURIComponent(documentId)}`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -450,7 +708,9 @@ class ApiClient {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Document verification failed: ${res.status}`);
     }
-    return res.json();
+    const data = await res.json();
+    const document: ApplicationDocument = data.document || data;
+    return { success: true, document };
   }
 
   async listEnquiries(params: {
@@ -461,9 +721,12 @@ class ApiClient {
     if (params.status && params.status !== 'ALL') searchParams.append('status', params.status);
     if (params.type && params.type !== 'ALL') searchParams.append('type', params.type);
 
-    const res = await fetch(`${this.baseUrl}/enquiries?${searchParams.toString()}`);
+    const res = await this.request(`/enquiries?${searchParams.toString()}`);
     if (!res.ok) throw new Error(`Failed to list enquiries: ${res.statusText}`);
-    return res.json();
+    const data = await res.json();
+    const enquiries: EnquiryDetail[] = Array.isArray(data) ? data : (data.enquiries || []);
+    const total = typeof data.total === 'number' ? data.total : (typeof data.totalCount === 'number' ? data.totalCount : enquiries.length);
+    return { total, enquiries };
   }
 
   async updateEnquiry(
@@ -474,7 +737,7 @@ class ApiClient {
       resolutionNote?: string;
     }
   ): Promise<{ success: boolean; enquiry: EnquiryDetail }> {
-    const res = await fetch(`${this.baseUrl}/enquiries/${encodeURIComponent(enquiryIdOrRef)}`, {
+    const res = await this.request(`/enquiries/${encodeURIComponent(enquiryIdOrRef)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -483,17 +746,22 @@ class ApiClient {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Enquiry update failed: ${res.status}`);
     }
-    return res.json();
+    const data = await res.json();
+    const enquiry: EnquiryDetail = data.enquiry || data;
+    return { success: true, enquiry };
   }
 
   async listTestDrives(): Promise<{ total: number; bookings: any[] }> {
     try {
-      const res = await fetch(`${this.baseUrl}/enquiries/test-drive`);
+      const res = await this.request('/enquiries/test-drive');
       if (!res.ok) {
         console.warn(`listTestDrives returned status ${res.status}`);
         return { total: 0, bookings: [] };
       }
-      return res.json();
+      const data = await res.json();
+      const bookings: any[] = Array.isArray(data) ? data : (data.bookings || []);
+      const total = typeof data.total === 'number' ? data.total : bookings.length;
+      return { total, bookings };
     } catch (e) {
       console.warn('listTestDrives network error:', e);
       return { total: 0, bookings: [] };
@@ -508,7 +776,7 @@ class ApiClient {
       notes?: string;
     }
   ): Promise<{ success: boolean; booking: any }> {
-    const res = await fetch(`${this.baseUrl}/enquiries/test-drive/${encodeURIComponent(bookingId)}`, {
+    const res = await this.request(`/enquiries/test-drive/${encodeURIComponent(bookingId)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -517,7 +785,9 @@ class ApiClient {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `Test drive update failed: ${res.status}`);
     }
-    return res.json();
+    const data = await res.json();
+    const booking: any = data.booking || data;
+    return { success: true, booking };
   }
 
   // ==========================================
@@ -525,9 +795,28 @@ class ApiClient {
   // ==========================================
 
   async getPortfolioSummary(): Promise<PortfolioSummary> {
-    const res = await fetch(`${this.baseUrl}/analytics/portfolio-summary`);
+    const res = await this.request('/analytics/portfolio-summary');
     if (!res.ok) throw new Error(`Failed to get portfolio summary: ${res.statusText}`);
-    return res.json();
+    const data = await res.json();
+    return {
+      kpis: data.kpis || {
+        totalApplications: 0,
+        totalRequestedVolume: 0,
+        totalApprovedVolume: 0,
+        approvalRate: 0,
+        avgTicketSize: 0,
+        activeEnquiries: 0,
+        scheduledTestDrives: 0,
+        underReviewCount: 0,
+        docsRequiredCount: 0,
+        approvedCount: 0,
+        rejectedCount: 0,
+      },
+      cibilDistribution: data.cibilDistribution || [],
+      employmentDistribution: data.employmentDistribution || [],
+      vehicleMix: data.vehicleMix || [],
+      monthlyVolumeHistory: data.monthlyVolumeHistory || [],
+    };
   }
 
   async addVehicleToCatalog(payload: {
@@ -539,7 +828,7 @@ class ApiClient {
     category: string;
     imageUrl?: string;
   }): Promise<VehicleSummary> {
-    const res = await fetch(`${this.baseUrl}/catalog/vehicles`, {
+    const res = await this.request('/catalog/vehicles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -556,13 +845,13 @@ class ApiClient {
   // ==========================================
 
   async getSystemUsers(): Promise<UserProfile[]> {
-    const res = await fetch(`${this.baseUrl}/auth/users`);
+    const res = await this.request('/auth/users');
     if (!res.ok) throw new Error(`Failed to load users: ${res.statusText}`);
     return res.json();
   }
 
   async login(credentials: { email?: string; password?: string; role?: string }): Promise<{ token: string; user: UserProfile }> {
-    const res = await fetch(`${this.baseUrl}/auth/login`, {
+    const res = await this.request('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),

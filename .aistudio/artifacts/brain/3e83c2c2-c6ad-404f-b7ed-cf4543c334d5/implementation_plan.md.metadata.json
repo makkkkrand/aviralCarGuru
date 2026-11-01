@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for integrating the local Spring Boot API (port 8080) with the frontend, featuring configurable base URL management in the Admin and Underwriting portal and support for future production deployments.",
+  "updatedAt":  "2026-11-01T15:39:52.038519694Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
